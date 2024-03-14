@@ -14,21 +14,6 @@ namespace MPPG
             public int Y { get; internal set; } = y;
         }
 
-        public struct Float3Struct(float x, float y, float z)
-        {
-            public float X { get; internal set; } = x;
-            public float Y { get; internal set; } = y;
-            public float Z { get; internal set; } = z;
-        }
-
-        public struct Float4Struct(float x, float y, float z, float val)
-        {
-            public float X { get; internal set; } = x;
-            public float Y { get; internal set; } = y;
-            public float Z { get; internal set; } = z;
-            public float Val { get; internal set; } = val;
-        }
-
         public struct MeasurementStruct
         {
             public MeasurementStruct()
@@ -51,14 +36,20 @@ namespace MPPG
             public char AxisType { get; internal set; }
             public float Depth { get; internal set; }
         }
-        public int NumberOfMeasurements { get; internal set; }
-        public string? ScannerSystem { get; internal set; }
-        public List<MeasurementStruct>? Measurements;
 
-        public bool Read(string filePath) 
+        public struct MeasurementData
+        {
+            public int NumberOfMeasurements { get; internal set; }
+            public string? ScannerSystem { get; internal set; }
+            public List<MeasurementStruct>? Measurements;
+        }
+
+        public static MeasurementData? Read(string filePath) 
         {  
             if (!File.Exists(filePath)) 
-                return false;
+                return null;
+
+            MeasurementData ret;
 
             using (var reader = new StreamReader(filePath))
             {
@@ -66,25 +57,26 @@ namespace MPPG
 
                 // The first line must have number of measurements
                 if (line == null || !line.StartsWith(":MSR"))
-                    return false;
+                    return null;
 
+                ret = new MeasurementData();
                 var index = line.IndexOf('#');
                 var val = index == -1 ? line[4..] : line[4..index];
-                NumberOfMeasurements = int.Parse(val.Trim());
+                ret.NumberOfMeasurements = int.Parse(val.Trim());
 
                 line = reader.ReadLine();
 
                 // Second line is beam data scanner system
                 if (line == null || !line.StartsWith(":SYS"))
-                    return false;
+                    return null;
 
                 index = line.IndexOf('#');
                 val = index == -1 ? line[4..] : line[4..index];
-                ScannerSystem = val.Trim();
+                ret.ScannerSystem = val.Trim();
 
-                Measurements = [];
+                ret.Measurements = [];
                 line = reader.ReadLine();
-                for (int i = 0; i < NumberOfMeasurements; i++)
+                for (int i = 0; i < ret.NumberOfMeasurements; i++)
                 {
                     var measurement = new MeasurementStruct();
                     bool reading = true;
@@ -182,12 +174,12 @@ namespace MPPG
                     if (measurement.AxisType == 'X' || measurement.AxisType == 'Y')
                         measurement.Depth = maxZ;
 
-                    Measurements.Add(measurement);
+                    ret.Measurements.Add(measurement);
                 }
                 
                 reader.Close();
             }
-            return true; 
+            return ret; 
         }
     }
 }

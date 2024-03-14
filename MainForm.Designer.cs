@@ -50,6 +50,8 @@
             txtASCFile = new TextBox();
             label2 = new Label();
             label1 = new Label();
+            label8 = new Label();
+            txtDCMOffset = new TextBox();
             mainMenu.SuspendLayout();
             panel1.SuspendLayout();
             SuspendLayout();
@@ -103,6 +105,8 @@
             // 
             panel1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             panel1.BackColor = SystemColors.ControlLight;
+            panel1.Controls.Add(txtDCMOffset);
+            panel1.Controls.Add(label8);
             panel1.Controls.Add(txtDCMManufacturer);
             panel1.Controls.Add(label7);
             panel1.Controls.Add(btnRun);
@@ -263,6 +267,24 @@
             label1.TabIndex = 6;
             label1.Text = "Measured Dose File";
             // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new Point(542, 116);
+            label8.Name = "label8";
+            label8.Size = new Size(49, 20);
+            label8.TabIndex = 21;
+            label8.Text = "Offset";
+            // 
+            // txtDCMOffset
+            // 
+            txtDCMOffset.Enabled = false;
+            txtDCMOffset.Location = new Point(692, 113);
+            txtDCMOffset.Name = "txtDCMOffset";
+            txtDCMOffset.ReadOnly = true;
+            txtDCMOffset.Size = new Size(278, 27);
+            txtDCMOffset.TabIndex = 22;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -304,5 +326,7 @@
         private Button btnRun;
         private TextBox txtDCMManufacturer;
         private Label label7;
+        private TextBox txtDCMOffset;
+        private Label label8;
     }
 }

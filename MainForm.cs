@@ -5,8 +5,8 @@ namespace MPPG
 {
     public partial class MainForm : Form
     {
-        private AscReader? asc;
-        private DcmReader? dcm;
+        private AscReader.MeasurementData? asc;
+        private DcmReader.CalculatedData? dcm;
 
         public MainForm()
         {
@@ -25,20 +25,22 @@ namespace MPPG
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 txtDCMFile.Text = dlg.SafeFileName;
-                var dcmFile = DICOMObject.Read(dlg.FileName);
-                var modality = dcmFile.FindFirst(TagHelper.Modality).DData as string;
-                if (modality == "RTDOSE")
+                var dcmSel = DICOMObject.Read(dlg.FileName).GetSelector();
+                if (dcmSel.Modality.Data == "RTDOSE")
                 {
-                    var dcm = new DcmReader();
-                    if (dcm.Read(dcmFile))
+                    dcm = DcmReader.Read(dcmSel, dlg.FileName);
+                    if (dcm != null)
                     {
-                        txtDCMManufacturer.Text = dcm.Manufacturer;
+                        txtDCMManufacturer.Text = dcm.Value.Manufacturer;
+                        var offset = dcm.Value.Offset.Value;
+                        txtDCMOffset.Text = string.Format("x: {0}, y: {1}, z: {2}", offset.X, offset.Y, offset.Z);
                         txtDCMStatus.Text = "Ready";
                     }
                     else
                     {
                         txtDCMStatus.Text = "Failed to load DICOM file";
                         txtDCMManufacturer.Text = "";
+                        txtDCMOffset.Text = "";
                         dcm = null;
                     }
                 }
@@ -60,12 +62,12 @@ namespace MPPG
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 txtASCFile.Text = dlg.SafeFileName;
-                asc = new AscReader();
-                if (asc.Read(dlg.FileName))
+                asc = AscReader.Read(dlg.FileName);
+                if (asc != null)
                 {
                     txtASCStatus.Text = "Ready";
-                    txtASCMeasurements.Text = asc.NumberOfMeasurements.ToString();
-                    txtASCScanner.Text = asc.ScannerSystem;
+                    txtASCMeasurements.Text = asc.Value.NumberOfMeasurements.ToString();
+                    txtASCScanner.Text = asc.Value.ScannerSystem;
                 }
                 else
                 {
