@@ -33,7 +33,7 @@ namespace MPPG
         {
             public MeasurementStruct()
             {
-                BeamData = new List<Float4Struct>();
+                BeamData = [];
             }
 
             public string? Version { get; internal set; }
@@ -51,13 +51,9 @@ namespace MPPG
             public char AxisType { get; internal set; }
             public float Depth { get; internal set; }
         }
-        public int NumberOfMeasurements { get; set; }
-        public List<MeasurementStruct> Measurements;
-
-        public AscReader()
-        {
-            Measurements = new List<MeasurementStruct>();
-        }
+        public int NumberOfMeasurements { get; internal set; }
+        public string? ScannerSystem { get; internal set; }
+        public List<MeasurementStruct>? Measurements;
 
         public bool Read(string filePath) 
         {  
@@ -67,17 +63,26 @@ namespace MPPG
             using (var reader = new StreamReader(filePath))
             {
                 var line = reader.ReadLine();
-                if (line == null)
-                    return false;
 
-                // Look for number of measurements line
-                if (!line.StartsWith(":MSR"))
+                // The first line must have number of measurements
+                if (line == null || !line.StartsWith(":MSR"))
                     return false;
 
                 var index = line.IndexOf('#');
                 var val = index == -1 ? line[4..] : line[4..index];
                 NumberOfMeasurements = int.Parse(val.Trim());
 
+                line = reader.ReadLine();
+
+                // Second line is beam data scanner system
+                if (line == null || !line.StartsWith(":SYS"))
+                    return false;
+
+                index = line.IndexOf('#');
+                val = index == -1 ? line[4..] : line[4..index];
+                ScannerSystem = val.Trim();
+
+                Measurements = [];
                 line = reader.ReadLine();
                 for (int i = 0; i < NumberOfMeasurements; i++)
                 {
