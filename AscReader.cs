@@ -41,7 +41,7 @@ namespace MPPG
         {
             public int NumberOfMeasurements { get; internal set; }
             public string? ScannerSystem { get; internal set; }
-            public List<MeasurementStruct>? Measurements;
+            public List<MeasurementStruct>? Data;
         }
 
         public static MeasurementData? Read(string filePath) 
@@ -74,7 +74,7 @@ namespace MPPG
                 val = index == -1 ? line[4..] : line[4..index];
                 ret.ScannerSystem = val.Trim();
 
-                ret.Measurements = [];
+                ret.Data = [];
                 line = reader.ReadLine();
                 for (int i = 0; i < ret.NumberOfMeasurements; i++)
                 {
@@ -174,7 +174,7 @@ namespace MPPG
                     if (measurement.AxisType == 'X' || measurement.AxisType == 'Y')
                         measurement.Depth = maxZ;
 
-                    ret.Measurements.Add(measurement);
+                    ret.Data.Add(measurement);
                 }
                 
                 reader.Close();

@@ -1,4 +1,5 @@
 using EvilDICOM.Core;
+using EvilDICOM.Core.Extensions;
 using EvilDICOM.Core.Helpers;
 
 namespace MPPG
@@ -25,10 +26,12 @@ namespace MPPG
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 txtDCMFile.Text = dlg.SafeFileName;
-                var dcmSel = DICOMObject.Read(dlg.FileName).GetSelector();
+                var dcmFile = DICOMObject.Read(dlg.FileName);
+                var dcmSel = dcmFile.GetSelector();
                 if (dcmSel.Modality.Data == "RTDOSE")
                 {
-                    dcm = DcmReader.Read(dcmSel, dlg.FileName);
+                    var pixelStream = dcmFile.GetPixelStream();
+                    dcm = DcmReader.Read(dcmSel, pixelStream, dlg.FileName);
                     if (dcm != null)
                     {
                         txtDCMManufacturer.Text = dcm.Value.Manufacturer;
@@ -48,6 +51,7 @@ namespace MPPG
                 {
                     txtDCMStatus.Text = "Not a DICOM-RT DOSE file";
                     txtDCMManufacturer.Text = "";
+                    txtDCMOffset.Text = "";
                     dcm = null;
                 }
 

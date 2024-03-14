@@ -1,4 +1,5 @@
 ﻿using EvilDICOM.Core;
+using EvilDICOM.Core.Image;
 using EvilDICOM.Core.Selection;
 
 namespace MPPG
@@ -9,9 +10,10 @@ namespace MPPG
         {
             public string? Manufacturer { get; internal set; }
             public Float3Struct? Offset { get; internal set; }
+            public List<Float4Struct>? Data { get; internal set; }
         }
 
-        public static CalculatedData Read(DICOMSelector dcmSel, string filePath)
+        public static CalculatedData Read(DICOMSelector dcmSel, PixelStream pixelStream, string filePath)
         {
             var ret = new CalculatedData();
             ret.Manufacturer = dcmSel.Manufacturer.Data;
@@ -21,6 +23,9 @@ namespace MPPG
             {
                 // TODO: Ask user for offset
             }
+
+            ReadData(dcmSel, pixelStream, ret);
+
             return ret;
         }
 
@@ -130,6 +135,48 @@ namespace MPPG
                 }
             }
             return null;
+        }
+
+        private static bool ReadData(DICOMSelector dcmSel, PixelStream pixelStream, CalculatedData calcData)
+        {
+            // Elements in X
+            var cols = dcmSel.Columns.Data;
+
+            // Elements in Y
+            var rows = dcmSel.Rows.Data;
+
+            // Elements in Z
+            var deps = dcmSel.NumberOfFrames.Data;
+
+            var imagePositionPatient = dcmSel.ImagePositionPatient.Data_;
+            var pixelSpacing = dcmSel.PixelSpacing.Data_;
+            var offset = calcData.Offset.Value;
+
+            // Establish Coordinate System[in cm]
+            // Note: PixelSpacing indices do not match ImagePositionPatient indices.
+            List<double> x = [];
+            for(int i = 0; i < cols; i++)
+                x.Add((imagePositionPatient[0] + pixelSpacing[1] * i) / 10 - offset.X);
+
+            List<double> y = [];
+            for (int i = 0; i < rows; i++)
+                y.Add((imagePositionPatient[1] + pixelSpacing[0] * i) / 10 - offset.Y);
+
+            List<double> z = [];
+            var data = dcmSel.GridFrameOffsetVector.Data_;
+            for (int i = 0; i < data.Count; i++)
+                z.Add((imagePositionPatient[2] + data[i]) / 10 - offset.Z);
+
+            var sr = new BinaryReader(pixelStream);
+            var bits = dcmSel.BitsStored.Data;
+            var p = sr.ReadUInt16();
+
+            var scale = dcmSel.DoseGridScaling.Data;
+
+            /*if (dcmSel.DoseUnits.Data == "CGY")
+                dose = dose / 100;*/
+
+            return false;
         }
     }
 }
