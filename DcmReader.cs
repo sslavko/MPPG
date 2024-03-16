@@ -9,6 +9,11 @@ namespace MPPG
         public struct CalculatedData
         {
             public string? Manufacturer { get; internal set; }
+
+            /*
+             * Offset value represents the offset from the dicom origin to the users chosen 
+             * isocenter in the plane for the given beam, or other way around
+             */
             public Float3Struct? Offset { get; internal set; }
             public List<Float4Struct>? Data { get; internal set; }
         }
@@ -36,7 +41,7 @@ namespace MPPG
          * A structure is returned. At this time, only the DICOM offset is sent
          * back, but this could be used to send addtional plan information.
          */
-        private static Float3Struct? FindOffset(DICOMSelector dcmSel, string filePath)
+            private static Float3Struct? FindOffset(DICOMSelector dcmSel, string filePath)
         {
             var planSeq = dcmSel.ReferencedRTPlanSequence.Data;
             if (planSeq == null)
