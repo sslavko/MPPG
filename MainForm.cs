@@ -116,31 +116,28 @@ namespace MPPG
 
             var relDosePlot = new ScottPlot.WinForms.FormsPlot()
             {
-                Dock = DockStyle.Top | DockStyle.Left,
-                Height = 100,
+                Dock = DockStyle.Fill,
                 Name = "Blah1"
             };
-            drawingPanel.Controls.Add(relDosePlot);
+            drawingPanel.Controls.Add(relDosePlot, 0, 0);
             relDosePlot.Plot.Add.Scatter(dataX, dataY);
             relDosePlot.Refresh();
 
             var gamaPlot = new ScottPlot.WinForms.FormsPlot()
             {
-                Dock = DockStyle.Top | DockStyle.Left,
-                Height = 100,
+                Dock = DockStyle.Fill,
                 Name = "Blah2"
             };
-            drawingPanel.Controls.Add(gamaPlot);
+            drawingPanel.Controls.Add(gamaPlot, 0, 1);
             gamaPlot.Plot.Add.Scatter(dataX, dataY);
             gamaPlot.Refresh();
 
             var auPlot = new ScottPlot.WinForms.FormsPlot()
             {
-                Dock = DockStyle.Top | DockStyle.Left,
-                Height = 100,
+                Dock = DockStyle.Fill,
                 Name = "Blah3"
             };
-            drawingPanel.Controls.Add(auPlot);
+            drawingPanel.Controls.Add(auPlot, 0, 2);
             auPlot.Plot.Add.Scatter(dataX, dataY);
             auPlot.Refresh();
         }
