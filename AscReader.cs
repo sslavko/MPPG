@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MPPG
+﻿namespace MPPG
 {
     internal class AscReader
     {
@@ -14,13 +8,16 @@ namespace MPPG
             public int Y { get; internal set; } = y;
         }
 
+        public struct BeamData(int n)
+        {
+            public double[] X { get; internal set; } = new double[n];
+            public double[] Y { get; internal set; } = new double[n];
+            public double[] Z { get; internal set; } = new double[n];
+            public double[] V { get; internal set; } = new double[n];
+        }
+
         public struct MeasurementStruct
         {
-            public MeasurementStruct()
-            {
-                BeamData = [];
-            }
-
             public string? Version { get; internal set; }
             public string? Date { get; internal set; }
             public string? Time { get; internal set; }
@@ -32,7 +29,7 @@ namespace MPPG
             public int SSD { get; internal set; }
             public Float3Struct StartPos { get; internal set; }
             public Float3Struct EndPos { get; internal set; }
-            public List<Float4Struct> BeamData { get; internal set; }
+            public BeamData BeamData { get; internal set; }
             public char AxisType { get; internal set; }
             public float Depth { get; internal set; }
         }
@@ -74,7 +71,7 @@ namespace MPPG
                 val = index == -1 ? line[4..] : line[4..index];
                 ret.ScannerSystem = val.Trim();
 
-                ret.Data = [];
+                ret.Data = new(ret.NumberOfMeasurements);
                 line = reader.ReadLine();
                 for (int i = 0; i < ret.NumberOfMeasurements; i++)
                 {
@@ -83,6 +80,8 @@ namespace MPPG
                     float minX = float.PositiveInfinity, maxX = float.NegativeInfinity,
                           minY = float.PositiveInfinity, maxY = float.NegativeInfinity,
                           minZ = float.PositiveInfinity, maxZ = float.NegativeInfinity;
+
+                    var count = 0;
                     while (reading && line != null)
                     {
                         if (line.StartsWith('#'))
@@ -123,6 +122,7 @@ namespace MPPG
                                 break;
                             case "%PTS": // Number of points
                                 measurement.NumPoints = int.Parse(line[4..].Trim());
+                                measurement.BeamData = new BeamData(measurement.NumPoints);
                                 break;
                             case "%SSD":
                                 measurement.SSD = int.Parse(line[4..].Trim());
@@ -149,21 +149,24 @@ namespace MPPG
                         if (line.StartsWith('='))
                         {
                             var lineParts = line.Split('\t', StringSplitOptions.TrimEntries);
-                            var data = new Float4Struct(
-                                float.Parse(lineParts[2]) / 10,
-                               -float.Parse(lineParts[1]) / 10,
-                                float.Parse(lineParts[3]) / 10,
-                                float.Parse(lineParts[4]));
+                            var x = float.Parse(lineParts[2]) / 10; // cm
+                            var y = -float.Parse(lineParts[1]) / 10; // cm
+                            var z = float.Parse(lineParts[3]) / 10; // cm
+                            var v = float.Parse(lineParts[4]);
 
                             // Track minimum and maximum values
-                            if (data.X < minX) minX = data.X;
-                            if (data.Y < minY) minY = data.Y;
-                            if (data.Z < minZ) minZ = data.Z;
-                            if (data.X > maxX) maxX = data.X;
-                            if (data.Y > maxY) maxY = data.Y;
-                            if (data.Z > maxZ) maxZ = data.Z;
+                            if (x < minX) minX = x;
+                            if (y < minY) minY = y;
+                            if (z < minZ) minZ = z;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+                            if (z > maxZ) maxZ = z;
 
-                            measurement.BeamData.Add(data);
+                            measurement.BeamData.X[count] = x;
+                            measurement.BeamData.Y[count] = y;
+                            measurement.BeamData.Z[count] = z;
+                            measurement.BeamData.V[count] = v;
+                            count++;
                         }
 
                         line = reader.ReadLine();
@@ -172,7 +175,7 @@ namespace MPPG
                     if (maxY - minY > .1) measurement.AxisType = 'Y';
                     if (maxZ - minZ > .1) measurement.AxisType = 'Z';
                     if (measurement.AxisType == 'X' || measurement.AxisType == 'Y')
-                        measurement.Depth = maxZ;
+                        measurement.Depth = minZ;
 
                     ret.Data.Add(measurement);
                 }

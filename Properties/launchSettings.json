@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MPPG": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\_Work\\MPPG\\Data\\1mm dose grid\\6MV 1x1.dcm\"\r\n\"C:\\_Work\\MPPG\\Data\\Measurements\\6MV 1x1 processed.asc\""
+    }
+  }
+}

@@ -15,23 +15,27 @@ namespace MPPG
              * isocenter in the plane for the given beam, or other way around
              */
             public Float3Struct? Offset { get; internal set; }
-            public List<Float4Struct>? Data { get; internal set; }
+            public List<float> X { get; internal set; }
+            public List<float> Y { get; internal set; }
+            public List<float> Z { get; internal set; }
         }
 
         public static CalculatedData Read(DICOMSelector dcmSel, PixelStream pixelStream, string filePath)
         {
-            var ret = new CalculatedData();
-            ret.Manufacturer = dcmSel.Manufacturer.Data;
-            ret.Offset = FindOffset(dcmSel, filePath);
+            var data = new CalculatedData
+            {
+                Manufacturer = dcmSel.Manufacturer.Data,
+                Offset = FindOffset(dcmSel, filePath)
+            };
 
-            if (ret.Offset == null)
+            if (data.Offset == null)
             {
                 // TODO: Ask user for offset
             }
 
-            ReadData(dcmSel, pixelStream, ret);
+            ReadData(dcmSel, pixelStream, ref data);
 
-            return ret;
+            return data;
         }
 
         /**
@@ -41,7 +45,7 @@ namespace MPPG
          * A structure is returned. At this time, only the DICOM offset is sent
          * back, but this could be used to send addtional plan information.
          */
-            private static Float3Struct? FindOffset(DICOMSelector dcmSel, string filePath)
+        private static Float3Struct? FindOffset(DICOMSelector dcmSel, string filePath)
         {
             var planSeq = dcmSel.ReferencedRTPlanSequence.Data;
             if (planSeq == null)
@@ -142,7 +146,7 @@ namespace MPPG
             return null;
         }
 
-        private static bool ReadData(DICOMSelector dcmSel, PixelStream pixelStream, CalculatedData calcData)
+        private static bool ReadData(DICOMSelector dcmSel, PixelStream pixelStream, ref CalculatedData calcData)
         {
             // Elements in X
             var cols = dcmSel.Columns.Data;
@@ -159,24 +163,24 @@ namespace MPPG
 
             // Establish Coordinate System[in cm]
             // Note: PixelSpacing indices do not match ImagePositionPatient indices.
-            List<double> x = [];
+            calcData.X = new(cols);
             for(int i = 0; i < cols; i++)
-                x.Add((imagePositionPatient[0] + pixelSpacing[1] * i) / 10 - offset.X);
+                calcData.X.Add((float)(imagePositionPatient[0] + pixelSpacing[1] * i) / 10 - offset.X);
 
-            List<double> y = [];
+            calcData.Y = new(rows);
             for (int i = 0; i < rows; i++)
-                y.Add((imagePositionPatient[1] + pixelSpacing[0] * i) / 10 - offset.Y);
+                calcData.Y.Add((float)(imagePositionPatient[1] + pixelSpacing[0] * i) / 10 - offset.Y);
 
-            List<double> z = [];
             var data = dcmSel.GridFrameOffsetVector.Data_;
+            calcData.Z = new(data.Count);
             for (int i = 0; i < data.Count; i++)
-                z.Add((imagePositionPatient[2] + data[i]) / 10 - offset.Z);
+                calcData.Z.Add((float)(imagePositionPatient[2] + data[i]) / 10 - offset.Z);
 
-            var sr = new BinaryReader(pixelStream);
+            /*var sr = new BinaryReader(pixelStream);
             var bits = dcmSel.BitsStored.Data;
             var p = sr.ReadUInt16();
 
-            var scale = dcmSel.DoseGridScaling.Data;
+            var scale = dcmSel.DoseGridScaling.Data;*/
 
             /*if (dcmSel.DoseUnits.Data == "CGY")
                 dose = dose / 100;*/

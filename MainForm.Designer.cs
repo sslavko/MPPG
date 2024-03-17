@@ -99,6 +99,7 @@
             // 
             // runToolStripMenuItem
             // 
+            runToolStripMenuItem.Enabled = false;
             runToolStripMenuItem.Name = "runToolStripMenuItem";
             runToolStripMenuItem.Size = new Size(48, 24);
             runToolStripMenuItem.Text = "&Run";
