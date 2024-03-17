@@ -14,17 +14,23 @@ namespace MPPG
             InitializeComponent();
         }
 
-        private void ExitMenuItem_Click(object sender, EventArgs e)
+        private void OnExit(object sender, EventArgs e)
         {
             Application.Exit();
         }
 
-        private void OpenCalculatedFileToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ClearGraphs()
+        {
+            drawingPanel.Controls.Clear();
+        }
+
+        private void OnOpenCalculatedFile(object sender, EventArgs e)
         {
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Filter = "Calculated DICOM Files (*.dcm)|*.dcm";
             if (dlg.ShowDialog() == DialogResult.OK)
             {
+                ClearGraphs();
                 Cursor = Cursors.WaitCursor;
                 txtDCMFile.Text = dlg.SafeFileName;
                 var dcmFile = DICOMObject.Read(dlg.FileName);
@@ -61,12 +67,13 @@ namespace MPPG
             };
         }
 
-        private void OpenMeasuredFileToolStripMenuItem_Click(object sender, EventArgs e)
+        private void OnOpenMeasuredFile(object sender, EventArgs e)
         {
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Filter = "Measured Files (*.asc)|*.asc";
             if (dlg.ShowDialog() == DialogResult.OK)
             {
+                ClearGraphs();
                 txtASCFile.Text = dlg.SafeFileName;
                 asc = AscReader.Read(dlg.FileName);
                 if (asc != null)
@@ -109,37 +116,80 @@ namespace MPPG
             };
         }
 
-        private void Run_Click(object sender, EventArgs e)
+        private void OnRun(object sender, EventArgs e)
         {
+            ClearGraphs();
+
+            var fileName = Path.GetFileName(txtDCMFile.Text);
+            var titleText = string.Format("Crossline Profiles at Depth (Y) = {0:F2} cm, Inline Position (Z) = {1:F2} cm", 1, 2);
+            var normText = string.Format("asdsad");
+            var horAxisText = string.Format("Inline Position (Z) [cm]");
+            txtTitle.Text = string.Format("{0}{1}{2}{1}{3}", fileName, Environment.NewLine, titleText, normText);
+
             double[] dataX = { 1, 2, 3, 4, 5 };
             double[] dataY = { 1, 4, 9, 16, 25 };
 
+            // Relative Dose plot
             var relDosePlot = new ScottPlot.WinForms.FormsPlot()
             {
-                Dock = DockStyle.Fill,
-                Name = "Blah1"
+                Dock = DockStyle.Fill
             };
             drawingPanel.Controls.Add(relDosePlot, 0, 0);
-            relDosePlot.Plot.Add.Scatter(dataX, dataY);
+            relDosePlot.Plot.ShowLegend(ScottPlot.Alignment.UpperRight);
+            relDosePlot.Plot.Add.Scatter(dataX, dataY).Label = "Measured"; //'TPS','Threshold'
+            relDosePlot.Plot.XLabel(horAxisText);
+            relDosePlot.Plot.YLabel("Relative Dose");
+            relDosePlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
             relDosePlot.Refresh();
 
+            var tpsDoseLabel = new Label()
+            {
+                Text = string.Format("TPS dose at normalization point is {0:F3} Gy", 1),
+                Location = new Point(40, 5),
+                BackColor = Color.White,
+                AutoSize = true
+            };
+            relDosePlot.Controls.Add(tpsDoseLabel);
+            tpsDoseLabel.BringToFront();
+
+            // Gamma plot
             var gamaPlot = new ScottPlot.WinForms.FormsPlot()
             {
                 Dock = DockStyle.Fill,
-                Name = "Blah2"
             };
             drawingPanel.Controls.Add(gamaPlot, 0, 1);
             gamaPlot.Plot.Add.Scatter(dataX, dataY);
+            gamaPlot.Plot.XLabel(horAxisText);
+            gamaPlot.Plot.YLabel("Gamma");
+            gamaPlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
             gamaPlot.Refresh();
 
+            var passRateLabel = new Label()
+            {
+                Text = string.Format("Pass rate: {0:F1}%", 100),
+                Location = new Point(40, 5),
+                AutoSize = true
+            };
+            gamaPlot.Controls.Add(passRateLabel);
+            passRateLabel.BringToFront();
+
+            // AU plot
             var auPlot = new ScottPlot.WinForms.FormsPlot()
             {
                 Dock = DockStyle.Fill,
-                Name = "Blah3"
             };
             drawingPanel.Controls.Add(auPlot, 0, 2);
-            auPlot.Plot.Add.Scatter(dataX, dataY);
+            auPlot.Plot.ShowLegend(ScottPlot.Alignment.UpperRight);
+            auPlot.Plot.Add.Scatter(dataX, dataY).Label = "distMinGam"; // 'doseMinGam'
+            auPlot.Plot.XLabel(horAxisText);
+            auPlot.Plot.YLabel("AU");
+            auPlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
             auPlot.Refresh();
+        }
+
+        private void OnOptions(object sender, EventArgs e)
+        {
+
         }
     }
 }

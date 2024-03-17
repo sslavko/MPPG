@@ -54,6 +54,7 @@
             label2 = new Label();
             txtASCStatus = new TextBox();
             drawingPanel = new TableLayoutPanel();
+            txtTitle = new TextBox();
             mainMenu.SuspendLayout();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
@@ -64,7 +65,7 @@
             mainMenu.Items.AddRange(new ToolStripItem[] { fileMenuItem, runToolStripMenuItem, optionsToolStripMenuItem, exitMenuItem });
             mainMenu.Location = new Point(0, 0);
             mainMenu.Name = "mainMenu";
-            mainMenu.Size = new Size(1282, 28);
+            mainMenu.Size = new Size(1182, 28);
             mainMenu.TabIndex = 4;
             mainMenu.Text = "menuStrip1";
             // 
@@ -80,14 +81,14 @@
             openMeasuredFileToolStripMenuItem.Name = "openMeasuredFileToolStripMenuItem";
             openMeasuredFileToolStripMenuItem.Size = new Size(267, 26);
             openMeasuredFileToolStripMenuItem.Text = "Open &Measured Dose File";
-            openMeasuredFileToolStripMenuItem.Click += OpenMeasuredFileToolStripMenuItem_Click;
+            openMeasuredFileToolStripMenuItem.Click += OnOpenMeasuredFile;
             // 
             // openCalculatedFileToolStripMenuItem
             // 
             openCalculatedFileToolStripMenuItem.Name = "openCalculatedFileToolStripMenuItem";
             openCalculatedFileToolStripMenuItem.Size = new Size(267, 26);
             openCalculatedFileToolStripMenuItem.Text = "Open &Calculated Dose File";
-            openCalculatedFileToolStripMenuItem.Click += OpenCalculatedFileToolStripMenuItem_Click;
+            openCalculatedFileToolStripMenuItem.Click += OnOpenCalculatedFile;
             // 
             // exportPDFToolStripMenuItem
             // 
@@ -101,20 +102,21 @@
             runToolStripMenuItem.Name = "runToolStripMenuItem";
             runToolStripMenuItem.Size = new Size(48, 24);
             runToolStripMenuItem.Text = "&Run";
-            runToolStripMenuItem.Click += Run_Click;
+            runToolStripMenuItem.Click += OnRun;
             // 
             // optionsToolStripMenuItem
             // 
             optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
             optionsToolStripMenuItem.Size = new Size(75, 24);
             optionsToolStripMenuItem.Text = "&Options";
+            optionsToolStripMenuItem.Click += OnOptions;
             // 
             // exitMenuItem
             // 
             exitMenuItem.Name = "exitMenuItem";
             exitMenuItem.Size = new Size(47, 24);
             exitMenuItem.Text = "&Exit";
-            exitMenuItem.Click += ExitMenuItem_Click;
+            exitMenuItem.Click += OnExit;
             // 
             // tableLayoutPanel1
             // 
@@ -149,17 +151,17 @@
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
-            tableLayoutPanel1.Size = new Size(1258, 152);
+            tableLayoutPanel1.Size = new Size(1158, 152);
             tableLayoutPanel1.TabIndex = 0;
             // 
             // txtDCMOffset
             // 
             txtDCMOffset.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             txtDCMOffset.Enabled = false;
-            txtDCMOffset.Location = new Point(782, 118);
+            txtDCMOffset.Location = new Point(732, 118);
             txtDCMOffset.Name = "txtDCMOffset";
             txtDCMOffset.ReadOnly = true;
-            txtDCMOffset.Size = new Size(473, 27);
+            txtDCMOffset.Size = new Size(423, 27);
             txtDCMOffset.TabIndex = 15;
             // 
             // label1
@@ -176,17 +178,17 @@
             // 
             txtDCMManufacturer.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             txtDCMManufacturer.Enabled = false;
-            txtDCMManufacturer.Location = new Point(782, 81);
+            txtDCMManufacturer.Location = new Point(732, 81);
             txtDCMManufacturer.Name = "txtDCMManufacturer";
             txtDCMManufacturer.ReadOnly = true;
-            txtDCMManufacturer.Size = new Size(473, 27);
+            txtDCMManufacturer.Size = new Size(423, 27);
             txtDCMManufacturer.TabIndex = 13;
             // 
             // label8
             // 
             label8.Anchor = AnchorStyles.Left;
             label8.AutoSize = true;
-            label8.Location = new Point(632, 122);
+            label8.Location = new Point(582, 122);
             label8.Name = "label8";
             label8.Size = new Size(49, 20);
             label8.TabIndex = 14;
@@ -196,10 +198,10 @@
             // 
             txtDCMStatus.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             txtDCMStatus.Enabled = false;
-            txtDCMStatus.Location = new Point(782, 46);
+            txtDCMStatus.Location = new Point(732, 46);
             txtDCMStatus.Name = "txtDCMStatus";
             txtDCMStatus.ReadOnly = true;
-            txtDCMStatus.Size = new Size(473, 27);
+            txtDCMStatus.Size = new Size(423, 27);
             txtDCMStatus.TabIndex = 11;
             txtDCMStatus.Text = "Not Loaded";
             // 
@@ -217,10 +219,10 @@
             // 
             txtDCMFile.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             txtDCMFile.Enabled = false;
-            txtDCMFile.Location = new Point(782, 11);
+            txtDCMFile.Location = new Point(732, 11);
             txtDCMFile.Name = "txtDCMFile";
             txtDCMFile.ReadOnly = true;
-            txtDCMFile.Size = new Size(473, 27);
+            txtDCMFile.Size = new Size(423, 27);
             txtDCMFile.TabIndex = 9;
             // 
             // label5
@@ -229,15 +231,15 @@
             label5.AutoSize = true;
             label5.Location = new Point(3, 84);
             label5.Name = "label5";
-            label5.Size = new Size(129, 20);
+            label5.Size = new Size(105, 20);
             label5.TabIndex = 4;
-            label5.Text = "Measurements No";
+            label5.Text = "Measurements";
             // 
             // label7
             // 
             label7.Anchor = AnchorStyles.Left;
             label7.AutoSize = true;
-            label7.Location = new Point(632, 84);
+            label7.Location = new Point(582, 84);
             label7.Name = "label7";
             label7.Size = new Size(97, 20);
             label7.TabIndex = 12;
@@ -260,14 +262,14 @@
             txtASCScanner.Location = new Point(153, 118);
             txtASCScanner.Name = "txtASCScanner";
             txtASCScanner.ReadOnly = true;
-            txtASCScanner.Size = new Size(473, 27);
+            txtASCScanner.Size = new Size(423, 27);
             txtASCScanner.TabIndex = 7;
             // 
             // label4
             // 
             label4.Anchor = AnchorStyles.Left;
             label4.AutoSize = true;
-            label4.Location = new Point(632, 49);
+            label4.Location = new Point(582, 49);
             label4.Name = "label4";
             label4.Size = new Size(49, 20);
             label4.TabIndex = 10;
@@ -280,7 +282,7 @@
             txtASCFile.Location = new Point(153, 11);
             txtASCFile.Name = "txtASCFile";
             txtASCFile.ReadOnly = true;
-            txtASCFile.Size = new Size(473, 27);
+            txtASCFile.Size = new Size(423, 27);
             txtASCFile.TabIndex = 1;
             // 
             // txtASCMeasurements
@@ -297,7 +299,7 @@
             // 
             label2.Anchor = AnchorStyles.Left;
             label2.AutoSize = true;
-            label2.Location = new Point(632, 14);
+            label2.Location = new Point(582, 14);
             label2.Name = "label2";
             label2.Size = new Size(144, 20);
             label2.TabIndex = 8;
@@ -310,35 +312,51 @@
             txtASCStatus.Location = new Point(153, 46);
             txtASCStatus.Name = "txtASCStatus";
             txtASCStatus.ReadOnly = true;
-            txtASCStatus.Size = new Size(473, 27);
+            txtASCStatus.Size = new Size(423, 27);
             txtASCStatus.TabIndex = 3;
             txtASCStatus.Text = "Not Loaded";
             // 
             // drawingPanel
             // 
             drawingPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            drawingPanel.BackColor = SystemColors.ControlLight;
+            drawingPanel.BackColor = SystemColors.Control;
             drawingPanel.ColumnCount = 1;
             drawingPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            drawingPanel.Location = new Point(12, 189);
+            drawingPanel.Location = new Point(12, 283);
             drawingPanel.Name = "drawingPanel";
             drawingPanel.RowCount = 3;
-            drawingPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333321F));
-            drawingPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333321F));
-            drawingPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333321F));
-            drawingPanel.Size = new Size(1258, 482);
+            drawingPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
+            drawingPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333359F));
+            drawingPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333359F));
+            drawingPanel.Size = new Size(1158, 408);
             drawingPanel.TabIndex = 6;
+            // 
+            // txtTitle
+            // 
+            txtTitle.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtTitle.BackColor = SystemColors.Control;
+            txtTitle.BorderStyle = BorderStyle.None;
+            txtTitle.Enabled = false;
+            txtTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            txtTitle.Location = new Point(12, 198);
+            txtTitle.Multiline = true;
+            txtTitle.Name = "txtTitle";
+            txtTitle.ReadOnly = true;
+            txtTitle.Size = new Size(1158, 79);
+            txtTitle.TabIndex = 7;
+            txtTitle.TextAlign = HorizontalAlignment.Center;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1282, 683);
+            ClientSize = new Size(1182, 703);
+            Controls.Add(txtTitle);
             Controls.Add(tableLayoutPanel1);
             Controls.Add(drawingPanel);
             Controls.Add(mainMenu);
             MainMenuStrip = mainMenu;
-            MinimumSize = new Size(1300, 730);
+            MinimumSize = new Size(700, 600);
             Name = "MainForm";
             Text = "MPPG Compare";
             mainMenu.ResumeLayout(false);
@@ -376,5 +394,6 @@
         private ToolStripMenuItem optionsToolStripMenuItem;
         private TableLayoutPanel drawingPanel;
         private TableLayoutPanel tableLayoutPanel1;
+        private TextBox txtTitle;
     }
 }
