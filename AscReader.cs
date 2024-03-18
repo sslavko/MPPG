@@ -10,10 +10,10 @@
 
         public struct BeamData(int n)
         {
-            public double[] X { get; internal set; } = new double[n];
-            public double[] Y { get; internal set; } = new double[n];
-            public double[] Z { get; internal set; } = new double[n];
-            public double[] V { get; internal set; } = new double[n];
+            public List<float> X { get; internal set; } = new(n);
+            public List<float> Y { get; internal set; } = new(n);
+            public List<float> Z { get; internal set; } = new(n);
+            public List<float> V { get; internal set; } = new(n);
         }
 
         public struct MeasurementStruct
@@ -81,7 +81,6 @@
                           minY = float.PositiveInfinity, maxY = float.NegativeInfinity,
                           minZ = float.PositiveInfinity, maxZ = float.NegativeInfinity;
 
-                    var count = 0;
                     while (reading && line != null)
                     {
                         if (line.StartsWith('#'))
@@ -162,11 +161,10 @@
                             if (y > maxY) maxY = y;
                             if (z > maxZ) maxZ = z;
 
-                            measurement.BeamData.X[count] = x;
-                            measurement.BeamData.Y[count] = y;
-                            measurement.BeamData.Z[count] = z;
-                            measurement.BeamData.V[count] = v;
-                            count++;
+                            measurement.BeamData.X.Add(x);
+                            measurement.BeamData.Y.Add(y);
+                            measurement.BeamData.Z.Add(z);
+                            measurement.BeamData.V.Add(v);
                         }
 
                         line = reader.ReadLine();

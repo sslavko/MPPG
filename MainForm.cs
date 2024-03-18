@@ -28,6 +28,7 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.Intrinsics.Arm;
+using OpenTK;
 
 namespace MPPG
 {
@@ -338,20 +339,59 @@ namespace MPPG
             Cursor = Cursors.Default;
         }
 
+        private static float FindSpacing(List<float> data)
+        {
+            var maxSpace = 0.0f;
+            var minSpace = 1000.0f;
+            for (int n = 1; n < data.Count; n++)
+            {
+                var f = data[n] - data[n - 1];
+                if (maxSpace < f) maxSpace = f;
+                if (minSpace > f) minSpace = f;
+            }
+            return maxSpace - minSpace;
+        }
+
+        private static void LineSpace(List<float> list)
+        {
+            // Note that increment can be negative if array is in reverse order
+            var inc = (list[^1] - list[0]) / (list.Count - 1);
+            var first = list[0];
+            for (int i = 0; i < list.Count; i++) 
+                list[i] = first + i * inc;
+        }
+
+        private static void LineSpace(float[] arr)
+        {
+            // Note that increment can be negative if array is in reverse order
+            var inc = (arr[^1] - arr[0]) / (arr.Length - 1);
+            var first = arr[0];
+            for (int i = 0; i < arr.Length; i++)
+                arr[i] = first + i * inc;
+        }
+
+        private static void FillList(List<float> list, float val)
+        {
+            for (int i = 0; i < list.Count; i++)
+                list[i] = val;
+        }
+
         private bool PrepareData(AscReader.MeasurementData measurement)
         {
             // Step 1: Evaluate the calculated dose grid to determine if the measure profile fits inside
 
             // Check if calculated dose grid is larger than measured for all boundaries
-            
-            // WARNING: Sometimes values are arranged in reverse orde (from positive to negative) and this code won't work!
-            var beamData = measurement.Data[0].BeamData;
-            var minx = beamData.X[0] < dcm.Value.X[0];
-            var miny = beamData.Z[0] < dcm.Value.Y[0];
-            var minz = beamData.Y[0] < dcm.Value.Z[0];
-            var maxx = beamData.X[^1] > dcm.Value.X[^1];
-            var maxy = beamData.Z[^1] > dcm.Value.Y[^1];
-            var maxz = beamData.Y[^1] > dcm.Value.Z[^1];
+
+            var measData = measurement.Data[0].BeamData;
+            var calData = dcm.Value;
+
+            // WARNING: Sometimes values are arranged in reverse order (from positive to negative) and this code won't work!
+            var minx = measData.X[0] < calData.X[0];
+            var miny = measData.Z[0] < calData.Y[0];
+            var minz = measData.Y[0] < calData.Z[0];
+            var maxx = measData.X[^1] > calData.X[^1];
+            var maxy = measData.Z[^1] > calData.Y[^1];
+            var maxz = measData.Y[^1] > calData.Z[^1];
 
             // If the measured dose extends outside calculated dose for any dimension, warn the user
             if (minx || maxx || miny || maxy || minz || maxz)
@@ -364,50 +404,50 @@ namespace MPPG
 
                 if (minx)
                 {
-                    str += string.Format("{0}Crossline Minimum: Measured = {1:F2}, Calculated = {2:F2}", 
-                        Environment.NewLine, beamData.X[0], dcm.Value.X[0]);
+                    str += string.Format("{0}Crossline Minimum: Measured = {1:F2}, Calculated = {2:F2}",
+                        Environment.NewLine, measData.X[0], calData.X[0]);
                     var ind = 0;
-                    while (beamData.X[ind] < dcm.Value.X[0])
+                    while (measData.X[ind] < calData.X[0])
                         ind++;
                     minIndex[0] = ind;
                 }
 
                 if (maxx)
                 {
-                    str += string.Format("{0}Crossline Maximum: Measured = {1:F2}, Calculated = {2:F2}", 
-                        Environment.NewLine, beamData.X[^1], dcm.Value.X[^1]);
-                    var ind = beamData.X.Length - 1;
-                    while (beamData.X[ind] > dcm.Value.X[^1])
+                    str += string.Format("{0}Crossline Maximum: Measured = {1:F2}, Calculated = {2:F2}",
+                        Environment.NewLine, measData.X[^1], calData.X[^1]);
+                    var ind = measData.X.Count - 1;
+                    while (measData.X[ind] > calData.X[^1])
                         ind++;
                     maxIndex[0] = ind;
                 }
 
                 if (miny)
                 {
-                    str += string.Format("{0}Depth Minimum: Measured = {1:F2}, Calculated = {2:F2}", 
-                        Environment.NewLine, beamData.Z[0], dcm.Value.Y[0]);
+                    str += string.Format("{0}Depth Minimum: Measured = {1:F2}, Calculated = {2:F2}",
+                        Environment.NewLine, measData.Z[0], calData.Y[0]);
                     var ind = 0;
-                    while (beamData.Z[ind] < dcm.Value.Y[0])
+                    while (measData.Z[ind] < calData.Y[0])
                         ind++;
                     minIndex[2] = ind;
                 }
 
                 if (maxy)
                 {
-                    str += string.Format("{0}Depth Maximum: Measured = {1:F2}, Calculated = {2:F2}", 
-                        Environment.NewLine, beamData.Z[^1], dcm.Value.Y[^1]);
-                    var ind = beamData.Z.Length - 1;
-                    while (beamData.Z[ind] > dcm.Value.Y[^1])
+                    str += string.Format("{0}Depth Maximum: Measured = {1:F2}, Calculated = {2:F2}",
+                        Environment.NewLine, measData.Z[^1], calData.Y[^1]);
+                    var ind = measData.Z.Count - 1;
+                    while (measData.Z[ind] > calData.Y[^1])
                         ind++;
                     maxIndex[2] = ind;
                 }
 
                 if (minz)
                 {
-                    str += string.Format("{0}Inline Minimum: Measured = {1:F2}, Calculated = {2:F2}", 
-                        Environment.NewLine, beamData.Y[0], dcm.Value.Z[0]);
+                    str += string.Format("{0}Inline Minimum: Measured = {1:F2}, Calculated = {2:F2}",
+                        Environment.NewLine, measData.Y[0], calData.Z[0]);
                     var ind = 0;
-                    while (beamData.Y[ind] < dcm.Value.Z[0])
+                    while (measData.Y[ind] < calData.Z[0])
                         ind++;
                     minIndex[1] = ind;
                 }
@@ -415,9 +455,9 @@ namespace MPPG
                 if (maxz)
                 {
                     str += string.Format("{0}Inline Maximum: Measured = {1:F2}, Calculated = {2:F2}",
-                        Environment.NewLine, beamData.Y[^1], dcm.Value.Z[^1]);
-                    var ind = beamData.Y.Length - 1;
-                    while (beamData.Y[ind] > dcm.Value.Z[^1])
+                        Environment.NewLine, measData.Y[^1], calData.Z[^1]);
+                    var ind = measData.Y.Count - 1;
+                    while (measData.Y[ind] > calData.Z[^1])
                         ind++;
                     maxIndex[1] = ind;
                 }
@@ -426,19 +466,19 @@ namespace MPPG
                 if (minx || miny || maxz)
                 {
                     var rem = minIndex.Max();
-                    beamData.X = beamData.X.Skip(rem).ToArray();
-                    beamData.Y = beamData.Y.Skip(rem).ToArray();
-                    beamData.Z = beamData.Z.Skip(rem).ToArray();
-                    beamData.V = beamData.V.Skip(rem).ToArray();
+                    measData.X = measData.X.Skip(rem).ToList();
+                    measData.Y = measData.Y.Skip(rem).ToList();
+                    measData.Z = measData.Z.Skip(rem).ToList();
+                    measData.V = measData.V.Skip(rem).ToList();
                 }
 
                 if (maxx || maxy || maxz)
                 {
                     var rem = maxIndex.Min();
-                    beamData.X = beamData.X.SkipLast(rem).ToArray();
-                    beamData.Y = beamData.Y.SkipLast(rem).ToArray();
-                    beamData.Z = beamData.Z.SkipLast(rem).ToArray();
-                    beamData.V = beamData.V.SkipLast(rem).ToArray();
+                    measData.X = measData.X.SkipLast(rem).ToList();
+                    measData.Y = measData.Y.SkipLast(rem).ToList();
+                    measData.Z = measData.Z.SkipLast(rem).ToList();
+                    measData.V = measData.V.SkipLast(rem).ToList();
                 }
 
                 str += string.Format("{0}{0}Measured dose profile has been truncated to allow interpolation of calculated dose data. The full measured profile will not be analyzed. This can be resolved by making the calculation dose grid larger.", Environment.NewLine);
@@ -452,22 +492,22 @@ namespace MPPG
             // (1) Identifies if the scan is moving along this axis.If the start and end location differ by more than 1 mm
             // it is "moving". If they differ by less that 1 mm, then this axis is assumed to be stationary.
             // (2) If the axis is stationary, all of the values in the vector are set to the mode of that vector.
-            /*if (abs(mx(end) - mx(1)) < 0.1)
-                mx = mode(mx) * ones(size(mx));
-            end
-            if (abs(my(end) - my(1)) < 0.1)
-                my = mode(my) * ones(size(my));
-            end
-            if (abs(mz(end) - mz(1)) < 0.1)
-                mz = mode(mz) * ones(size(mz));
-            end*/
 
-            // Identify the "moving" axis.For a diagonal profile, there is more than one moving axis,
-            // but only one will be selected for the axis values displayed on the graph.
-            /*if (mz(1) ~= mz(end)); idm = mz;
-            elseif mx(1) ~= mx(end); idm = mx;
-            elseif my(1) ~= my(end); idm = my;
-            end*/
+            // Note: original code was filling stationary axis with their modal but since all values in them are esentially
+            // the same we can use the first element
+            List<float> idm = measData.X;
+            if (Math.Abs(measData.X[^1] - measData.X[0]) < 0.1)
+                FillList(measData.X, measData.X[0]);
+
+            if (Math.Abs(measData.Y[^1] - measData.Y[0]) < 0.1)
+                FillList(measData.Y, measData.Y[0]);
+            else
+                idm = measData.Y;
+
+            if (Math.Abs(measData.Z[^1] - measData.Z[0]) < 0.1)
+                FillList(measData.Z, measData.Z[0]);
+            else
+                idm = measData.Z;
 
             // Check if any points of the measured data are at same location. Get rid of any measured
             // points that are at repeat locations, this will crash interpolation
@@ -475,49 +515,91 @@ namespace MPPG
             idm = idm(not_rep_pts); // remove repeats in the sample positions
             md = md(not_rep_pts);   // remove repeats in measured data*/
 
-            // Step 3: Check for non - uniform dose grid axes Some TPS(e.g.ViewRay) exports DICOM - RT dose files
+            // Step 3: Check for non - uniform dose grid axes. Some TPS(e.g. ViewRay) exports DICOM - RT dose files
             // that have rounding errors in the(X, Y, Z) positions, resulting in a non - uniform dose grid.
             // The following code checks for this condition, determines how large it is and resamples to a uniform spacing.
 
             // X
-            /*x_max_space = max(cx(2:end) - cx(1:(end - 1)));
-            x_min_space = min(cx(2:end) - cx(1:(end - 1)));
-            if (x_max_space - x_min_space > 0.001) % is it larger than 1 / 100 mm?
-            h = msgbox(sprintf('%WARNING: The calculated x-axis values are not uniformly spaced. The maximum discrepancy is %f cm.', x_max_space - x_min_space));
-            cx = linspace(cx(1), cx(end), length(cx));
-            elseif(x_max_space - x_min_space > 0.0) % is it larger than 0 mm?
-                cx = linspace(cx(1), cx(end), length(cx));
-            end*/
+            var space = FindSpacing(calData.X);
+
+            if (space > 0.001) // is it larger than 1 / 100 mm?
+            {
+                MessageBox.Show(string.Format("WARNING: The calculated x-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
+                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                LineSpace(calData.X);
+            }
+            else if (space > 0.0) // is it larger than 0 mm?
+            {
+                // WARNING: Why???
+                // LineSpace(calData.X);
+            }
 
             // Y
-            /*y_max_space = max(cy(2:end) - cy(1:(end - 1)));
-            y_min_space = min(cy(2:end) - cy(1:(end - 1)));
-            if (y_max_space - y_min_space > 0.001) % is it larger than 1 / 100 mm?
-                h = msgbox(sprintf('%WARNING: The calculated y-axis values are not uniformly spaced. The maximum discrepancy is %f cm.', y_max_space - y_min_space));
-            cy = linspace(cy(1), cy(end), length(cy));
-            elseif(y_max_space - y_min_space > 0.0) % is it larger than 0 mm?
-                cy = linspace(cy(1), cy(end), length(cy));
-            end*/
+            space = FindSpacing(calData.Y);
+
+            if (space > 0.001) // is it larger than 1 / 100 mm?
+            {
+                MessageBox.Show(string.Format("WARNING: The calculated y-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
+                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                LineSpace(calData.Y);
+            }
+            else if (space > 0.0) // is it larger than 0 mm?
+            {
+                // WARNING: Why???
+                // LineSpace(calData.Y);
+            }
 
             // Z
-            /*z_max_space = max(cz(2:end) - cz(1:(end - 1)));
-            z_min_space = min(cz(2:end) - cz(1:(end - 1)));
-            if (z_max_space - z_min_space > 0.001) % is it larger than 1 / 100 mm?
-                h = msgbox(sprintf('%WARNING: The calculated z-axis values are not uniformly spaced. The maximum discrepancy is %f cm.', z_max_space - z_min_space));
-            cz = linspace(cz(1), cz(end), length(cz));
-            elseif(z_max_space - z_min_space > 0.0) % is it larger than 0 mm?
-                cz = linspace(cz(1), cz(end), length(cz));
-            end*/
+            space = FindSpacing(calData.Z);
+
+            if (space > 0.001) // is it larger than 1 / 100 mm?
+            {
+                MessageBox.Show(string.Format("WARNING: The calculated z-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
+                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                LineSpace(calData.Z);
+            }
+            else if (space > 0.0) // is it larger than 0 mm?
+            {
+                // WARNING: Why???
+                // LineSpace(calData.Z);
+            }
 
             // Step 4: Resample for gamma analysis
 
             // Resample indep with the same range but a finer spacing
-            /*SAMP_PER_CM = 200; // samples per cm
-            idm_range = abs(idm(end) - idm(1));
-            PTS = min(2500, floor(SAMP_PER_CM * idm_range)); // number of samples
-            indep = linspace(idm(1), idm(end), PTS);*/
+            var SAMP_PER_CM = 200; // samples per cm
+            var idmRange = Math.Abs(idm[^1] - idm[0]);
+            var numberOfPoints = Math.Min(2500, (int)Math.Floor(SAMP_PER_CM * idmRange)); // number of samples needed, max 2500
+
+            var newX = new float[numberOfPoints];
+            newX[0] = idm[0];   // Insert first value
+            newX[^1] = idm[^1]; // Insert last value
+
+            // This will make it lineary spaced
+            LineSpace(newX);
 
             // Resample md with new indep
+            var interpolator = MathNet.Numerics.Interpolation.CubicSpline.InterpolatePchip(idm.Select(n => (double)n), measData.V.Select(n => (double)n));
+            var newVals = new float[newX.Length];
+            for (var i = 0; i < newX.Length; i++)
+                newVals[i] = (float)interpolator.Interpolate(newX[i]);
+
+            idm.EnsureCapacity(newX.Length);
+            measData.V.EnsureCapacity(newVals.Length);
+            for (var i = 0; i < idm.Count; i++)
+            {
+                idm[i] = newX[i];
+                measData.V[i] = newVals[i];
+            }
+            for (var i = idm.Count; i < newVals.Length; i++)
+            {
+                idm.Add(newX[i]);
+                measData.V.Add(newVals[i]);
+            }
+
             //md = interp1(idm, md, indep, 'PCHIP');
 
             // Resample calculated dose with new indep
