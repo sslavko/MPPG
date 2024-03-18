@@ -61,8 +61,10 @@ namespace MPPG
 
         private void OnOpenCalculatedFile(object sender, EventArgs e)
         {
-            OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Filter = "Calculated DICOM Files (*.dcm)|*.dcm";
+            var dlg = new OpenFileDialog
+            {
+                Filter = "Calculated DICOM Files (*.dcm)|*.dcm"
+            };
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 OpenCalculatedFile(dlg.FileName);
@@ -109,8 +111,10 @@ namespace MPPG
 
         private void OnOpenMeasuredFile(object sender, EventArgs e)
         {
-            OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Filter = "Measured Files (*.asc)|*.asc";
+            var dlg = new OpenFileDialog
+            {
+                Filter = "Measured Files (*.asc)|*.asc"
+            };
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 OpenMeasuredFile(dlg.FileName);
@@ -171,6 +175,8 @@ namespace MPPG
 
             var measurement = asc.Value;
             PrepareData(measurement);
+
+            VerifyData();
 
             // TODO: Loop
             Plot(measurement.Data[0]);
@@ -581,7 +587,7 @@ namespace MPPG
             // This will make it lineary spaced
             LineSpace(newX);
 
-            // Resample md with new indep
+            // Resample values with new X axis
             var interpolator = MathNet.Numerics.Interpolation.CubicSpline.InterpolatePchip(idm.Select(n => (double)n), measData.V.Select(n => (double)n));
             var newVals = new float[newX.Length];
             for (var i = 0; i < newX.Length; i++)
@@ -600,8 +606,6 @@ namespace MPPG
                 measData.V.Add(newVals[i]);
             }
 
-            //md = interp1(idm, md, indep, 'PCHIP');
-
             // Resample calculated dose with new indep
             //cd = interp3(cx, cy, cz, calcData, linspace(mx(1), mx(end), PTS), linspace(mz(1), mz(end), PTS), linspace(my(1), my(end), PTS), '*cubic');
 
@@ -619,7 +623,7 @@ namespace MPPG
             return true;
         }
 
-        private void VerifyData(int doseThr)
+        private void VerifyData()
         {
             // vOut = VerifyData(regMeas, regCalc, plotOn, distThr, doseThr)
             // Perform 1D gamma evaluation
@@ -645,7 +649,10 @@ namespace MPPG
             //   D.A.Low and J.F.Dempsey.Evaluation of the gamma dose distribution
             //   comparison method.Medical Physics, 30(5):2455 2464, 2003.
 
-            doseThr = doseThr / 100; // Convert from percent to decimal
+            var settings = new Properties.Settings();
+            var distThr = settings.dta / 100; // Convert from percent to decimal
+            var doseThr = settings.doseDiff;
+
             // Compute distance error(in mm)
             /*var len = length(regMeas(:, 1));
             rm = repmat(10 * regMeas(:, 1), 1, len); // convert to mm
@@ -711,9 +718,11 @@ namespace MPPG
             gamma_stats = [gamma_max gamma_mean gamma_std aboveTh aboveThPass passRt];*/
 
         }
+
         private void OnOptions(object sender, EventArgs e)
         {
-
+            var opts = new Options();
+            opts.ShowDialog(this);
         }
     }
 }
