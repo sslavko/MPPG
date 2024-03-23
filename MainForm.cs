@@ -219,7 +219,7 @@ namespace MPPG
                 pageNum = val;
                 ClearGraphs();
                 var plotData = PrepareData(asc.Value.Data[pageNum - 1]);
-                VerifyData();
+                VerifyData(plotData);
                 Plot(plotData);
                 CheckPageButtons();
             }
@@ -243,7 +243,7 @@ namespace MPPG
                 CheckData(measurements.Data[0], i + 1);
 
             PlotData plotData = PrepareData(measurements.Data[0]);
-            VerifyData();
+            VerifyData(plotData);
             Plot(plotData);
 
             txtPageNum.Enabled = true;
@@ -623,7 +623,7 @@ namespace MPPG
                 idm.Select(n => (double)n),
                 measData.V.Select(n => (double)n));
 
-            // Calculate new values for each new X position
+            // Calculate new values for each new position
             plotData.md = new float[plotData.indep.Length];
             for (var i = 0; i < plotData.indep.Length; i++)
                 plotData.md[i] = (float)interpolator.Interpolate(plotData.indep[i]);
@@ -632,8 +632,8 @@ namespace MPPG
             // TODO:
             //cd = interp3(cx, cy, cz, calcData, linspace(mx(1), mx(end), PTS), linspace(mz(1), mz(end), PTS), linspace(my(1), my(end), PTS), '*cubic');
 
-            // QUESTION: Can we do this before resampling? It is faster to normalize original values before resampling
-            // Step 4: Apply normalization preferences:
+            // QUESTION: Can we do this before resampling? It is faster to normalize original values before resampling - less calculations
+            // Apply normalization preferences:
             // Use user preferences to determine normalization location
             var settings = new Properties.Settings();
             plotData.normLoc = null;
@@ -748,14 +748,28 @@ namespace MPPG
          *   D.A.Low and J.F.Dempsey.Evaluation of the gamma dose distribution
          *   comparison method.Medical Physics, 30(5):2455 2464, 2003.
          */
-        private void VerifyData()
+        private void VerifyData(PlotData plotData)
         {
             var settings = new Properties.Settings();
-            var distThr = settings.dta / 100; // Convert from percent to decimal
-            var doseThr = settings.doseDiff;
 
-            // Compute distance error(in mm)
-            /*var len = length(regMeas(:, 1));
+            // Distance threshold
+            var distThr = settings.dta;
+
+            // Dose threshold
+            var doseThr = settings.doseDiff / 100; // Convert from percent to decimal
+
+            // Compute distance error (in mm)
+            var len = plotData.indep.Length;
+            var distThr2 = distThr * distThr;
+            var err = new float[len, len];
+            for (int col = 0; col < plotData.indep.Length; col++)
+                for (int row = 0; row < plotData.indep.Length; row++)
+                {
+                    var d = (plotData.indep[row] - plotData.indep[col]) * 10; // convert to mm
+                    err[row, col] = d * d / distThr2;
+                }
+
+            /*var len = plotData.indep.Length;
             rm = repmat(10 * regMeas(:, 1), 1, len); // convert to mm
             rc = repmat(10 * regCalc(:, 1)',len,1);  // convert to mm
             rE = (rm - rc).^ 2;
