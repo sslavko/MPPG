@@ -55,6 +55,9 @@
             txtASCStatus = new TextBox();
             drawingPanel = new TableLayoutPanel();
             txtTitle = new TextBox();
+            btnLeftPageNo = new Button();
+            btnRightPageNo = new Button();
+            txtPageNum = new TextBox();
             mainMenu.SuspendLayout();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
@@ -339,19 +342,55 @@
             txtTitle.BorderStyle = BorderStyle.None;
             txtTitle.Enabled = false;
             txtTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            txtTitle.Location = new Point(12, 198);
+            txtTitle.Location = new Point(165, 198);
             txtTitle.Multiline = true;
             txtTitle.Name = "txtTitle";
             txtTitle.ReadOnly = true;
-            txtTitle.Size = new Size(1158, 79);
-            txtTitle.TabIndex = 7;
+            txtTitle.Size = new Size(851, 79);
+            txtTitle.TabIndex = 10;
             txtTitle.TextAlign = HorizontalAlignment.Center;
+            // 
+            // btnLeftPageNo
+            // 
+            btnLeftPageNo.Enabled = false;
+            btnLeftPageNo.Location = new Point(12, 198);
+            btnLeftPageNo.Name = "btnLeftPageNo";
+            btnLeftPageNo.Size = new Size(27, 27);
+            btnLeftPageNo.TabIndex = 7;
+            btnLeftPageNo.Text = "<";
+            btnLeftPageNo.UseVisualStyleBackColor = true;
+            btnLeftPageNo.Click += OnPrevPage;
+            // 
+            // btnRightPageNo
+            // 
+            btnRightPageNo.Enabled = false;
+            btnRightPageNo.Location = new Point(91, 198);
+            btnRightPageNo.Name = "btnRightPageNo";
+            btnRightPageNo.Size = new Size(27, 27);
+            btnRightPageNo.TabIndex = 9;
+            btnRightPageNo.Text = ">";
+            btnRightPageNo.UseVisualStyleBackColor = true;
+            btnRightPageNo.Click += OnNextPage;
+            // 
+            // txtPageNum
+            // 
+            txtPageNum.Enabled = false;
+            txtPageNum.Location = new Point(45, 198);
+            txtPageNum.Name = "txtPageNum";
+            txtPageNum.Size = new Size(40, 27);
+            txtPageNum.TabIndex = 8;
+            txtPageNum.Text = "1";
+            txtPageNum.TextAlign = HorizontalAlignment.Center;
+            txtPageNum.TextChanged += OnPageNumChanged;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1182, 703);
+            Controls.Add(txtPageNum);
+            Controls.Add(btnRightPageNo);
+            Controls.Add(btnLeftPageNo);
             Controls.Add(txtTitle);
             Controls.Add(tableLayoutPanel1);
             Controls.Add(drawingPanel);
@@ -396,5 +435,8 @@
         private TableLayoutPanel drawingPanel;
         private TableLayoutPanel tableLayoutPanel1;
         private TextBox txtTitle;
+        private Button btnLeftPageNo;
+        private Button btnRightPageNo;
+        private TextBox txtPageNum;
     }
 }

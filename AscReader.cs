@@ -16,7 +16,7 @@
             public List<float> V { get; internal set; } = new(n);
         }
 
-        public struct MeasurementStruct
+        public struct SingleMeasurement
         {
             public string? Version { get; internal set; }
             public string? Date { get; internal set; }
@@ -34,19 +34,19 @@
             public float Depth { get; internal set; }
         }
 
-        public struct MeasurementData
+        public struct Measurements
         {
             public int NumberOfMeasurements { get; internal set; }
             public string? ScannerSystem { get; internal set; }
-            public List<MeasurementStruct>? Data;
+            public List<SingleMeasurement> Data;
         }
 
-        public static MeasurementData? Read(string filePath) 
+        public static Measurements? Read(string filePath) 
         {  
             if (!File.Exists(filePath)) 
                 return null;
 
-            MeasurementData ret;
+            Measurements ret;
 
             using (var reader = new StreamReader(filePath))
             {
@@ -56,7 +56,7 @@
                 if (line == null || !line.StartsWith(":MSR"))
                     return null;
 
-                ret = new MeasurementData();
+                ret = new Measurements();
                 var index = line.IndexOf('#');
                 var val = index == -1 ? line[4..] : line[4..index];
                 ret.NumberOfMeasurements = int.Parse(val.Trim());
@@ -75,7 +75,7 @@
                 line = reader.ReadLine();
                 for (int i = 0; i < ret.NumberOfMeasurements; i++)
                 {
-                    var measurement = new MeasurementStruct();
+                    var measurement = new SingleMeasurement();
                     bool reading = true;
                     float minX = float.PositiveInfinity, maxX = float.NegativeInfinity,
                           minY = float.PositiveInfinity, maxY = float.NegativeInfinity,
