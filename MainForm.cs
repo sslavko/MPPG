@@ -108,6 +108,7 @@ namespace MPPG
                     txtDCMOffset.Text = "";
                     dcm = null;
                 }
+                pixelStream.Close();
             }
             else
             {
@@ -362,26 +363,17 @@ namespace MPPG
             auPlot.Refresh();
         }
 
-        private static float FindSpacing(List<float> data)
+        private static float FindSpacing(float[] data)
         {
             var maxSpace = 0.0f;
             var minSpace = 1000.0f;
-            for (int n = 1; n < data.Count; n++)
+            for (int n = 1; n < data.Length; n++)
             {
                 var f = data[n] - data[n - 1];
                 if (maxSpace < f) maxSpace = f;
                 if (minSpace > f) minSpace = f;
             }
             return maxSpace - minSpace;
-        }
-
-        private static void LineSpace(List<float> list)
-        {
-            // Note that increment can be negative if array is in reverse order
-            var inc = (list[^1] - list[0]) / (list.Count - 1);
-            var first = list[0];
-            for (int i = 0; i < list.Count; i++)
-                list[i] = first + i * inc;
         }
 
         private static void LineSpace(float[] arr)
@@ -393,9 +385,9 @@ namespace MPPG
                 arr[i] = first + i * inc;
         }
 
-        private static void FillList(List<float> list, float val)
+        private static void FillArray(float[] list, float val)
         {
-            for (int i = 0; i < list.Count; i++)
+            for (int i = 0; i < list.Length; i++)
                 list[i] = val;
         }
 
@@ -429,6 +421,7 @@ namespace MPPG
                 {
                     str += string.Format("{0}Crossline Minimum: Measured = {1:F2}, Calculated = {2:F2}",
                         Environment.NewLine, measData.X[0], calData.X[0]);
+
                     var ind = 0;
                     while (measData.X[ind] < calData.X[0])
                         ind++;
@@ -439,7 +432,8 @@ namespace MPPG
                 {
                     str += string.Format("{0}Crossline Maximum: Measured = {1:F2}, Calculated = {2:F2}",
                         Environment.NewLine, measData.X[^1], calData.X[^1]);
-                    var ind = measData.X.Count - 1;
+
+                    var ind = measData.X.Length - 1;
                     while (measData.X[ind] > calData.X[^1])
                         ind++;
                     maxIndex[0] = ind;
@@ -449,6 +443,7 @@ namespace MPPG
                 {
                     str += string.Format("{0}Depth Minimum: Measured = {1:F2}, Calculated = {2:F2}",
                         Environment.NewLine, measData.Z[0], calData.Y[0]);
+
                     var ind = 0;
                     while (measData.Z[ind] < calData.Y[0])
                         ind++;
@@ -459,7 +454,8 @@ namespace MPPG
                 {
                     str += string.Format("{0}Depth Maximum: Measured = {1:F2}, Calculated = {2:F2}",
                         Environment.NewLine, measData.Z[^1], calData.Y[^1]);
-                    var ind = measData.Z.Count - 1;
+
+                    var ind = measData.Z.Length - 1;
                     while (measData.Z[ind] > calData.Y[^1])
                         ind++;
                     maxIndex[2] = ind;
@@ -469,6 +465,7 @@ namespace MPPG
                 {
                     str += string.Format("{0}Inline Minimum: Measured = {1:F2}, Calculated = {2:F2}",
                         Environment.NewLine, measData.Y[0], calData.Z[0]);
+
                     var ind = 0;
                     while (measData.Y[ind] < calData.Z[0])
                         ind++;
@@ -479,7 +476,8 @@ namespace MPPG
                 {
                     str += string.Format("{0}Inline Maximum: Measured = {1:F2}, Calculated = {2:F2}",
                         Environment.NewLine, measData.Y[^1], calData.Z[^1]);
-                    var ind = measData.Y.Count - 1;
+
+                    var ind = measData.Y.Length - 1;
                     while (measData.Y[ind] > calData.Z[^1])
                         ind++;
                     maxIndex[1] = ind;
@@ -489,19 +487,19 @@ namespace MPPG
                 if (minx || miny || maxz)
                 {
                     var rem = minIndex.Max();
-                    measData.X = measData.X.Skip(rem).ToList();
-                    measData.Y = measData.Y.Skip(rem).ToList();
-                    measData.Z = measData.Z.Skip(rem).ToList();
-                    measData.V = measData.V.Skip(rem).ToList();
+                    measData.X = measData.X.Skip(rem).ToArray();
+                    measData.Y = measData.Y.Skip(rem).ToArray();
+                    measData.Z = measData.Z.Skip(rem).ToArray();
+                    measData.V = measData.V.Skip(rem).ToArray();
                 }
 
                 if (maxx || maxy || maxz)
                 {
                     var rem = maxIndex.Min();
-                    measData.X = measData.X.SkipLast(rem).ToList();
-                    measData.Y = measData.Y.SkipLast(rem).ToList();
-                    measData.Z = measData.Z.SkipLast(rem).ToList();
-                    measData.V = measData.V.SkipLast(rem).ToList();
+                    measData.X = measData.X.SkipLast(rem).ToArray();
+                    measData.Y = measData.Y.SkipLast(rem).ToArray();
+                    measData.Z = measData.Z.SkipLast(rem).ToArray();
+                    measData.V = measData.V.SkipLast(rem).ToArray();
                 }
 
                 str += string.Format("{0}{0}Measured dose profile has been truncated to allow interpolation of calculated dose data. The full measured profile will not be analyzed. This can be resolved by making the calculation dose grid larger.", Environment.NewLine);
@@ -529,21 +527,21 @@ namespace MPPG
             // QUESTION: Can we use measurement AxisType?
             var idm = measData.X;
             if (Math.Abs(measData.X[^1] - measData.X[0]) < 0.1)
-                FillList(measData.X, measData.X[0]);
+                FillArray(measData.X, measData.X[0]);
 
             if (Math.Abs(measData.Y[^1] - measData.Y[0]) < 0.1)
-                FillList(measData.Y, measData.Y[0]);
+                FillArray(measData.Y, measData.Y[0]);
             else
                 idm = measData.Y;
 
             if (Math.Abs(measData.Z[^1] - measData.Z[0]) < 0.1)
-                FillList(measData.Z, measData.Z[0]);
+                FillArray(measData.Z, measData.Z[0]);
             else
                 idm = measData.Z;
 
             // Check if any points of the measured data are at same location. Get rid of any measured
             // points that are at repeat locations, this will crash interpolation
-            for (int i = 1; i < idm.Count; i++)
+            for (int i = 1; i < idm.Length; i++)
             {
                 if (idm[i] - idm[i - 1] == 0)
                 {
@@ -615,18 +613,46 @@ namespace MPPG
             plotData.indep[0] = idm[0];   // Insert first value
             plotData.indep[^1] = idm[^1]; // Insert last value
 
-            // This will fill array wit linearly spaced values
+            // This will fill array with linearly spaced values
             LineSpace(plotData.indep);
 
-            // Resample values with new indep
-            var interpolator = MathNet.Numerics.Interpolation.CubicSpline.InterpolatePchip(
-                idm.Select(n => (double)n),
+            // Interpolation functions require array of doubles, prepare it here once
+            var reqPos = idm.Select(n => (double)n);
+
+            // Resample measured values with new indep
+            var interpolatorM = MathNet.Numerics.Interpolation.CubicSpline.InterpolatePchip(
+                reqPos,
                 measData.V.Select(n => (double)n));
 
-            // Calculate new values for each new position
+            // Find new measured values for each new position
             plotData.md = new float[plotData.indep.Length];
             for (var i = 0; i < plotData.indep.Length; i++)
-                plotData.md[i] = (float)interpolator.Interpolate(plotData.indep[i]);
+                plotData.md[i] = (float)interpolatorM.Interpolate(plotData.indep[i]);
+
+            // Find nearest calculated values
+            var calcVals = new double[idm.Length];
+            for (int i = 0; i < calcVals.Length; i++)
+            {
+                switch (measurement.AxisType)
+                {
+                    case 'X':
+                        break;
+                    case 'Y':
+                        break;
+                    case 'Z':
+                        break;
+                }
+            }
+
+            // Resample calculated values with new indep
+            var interpolatorC = MathNet.Numerics.Interpolation.CubicSpline.InterpolateNatural(
+                reqPos,
+                calcVals);
+
+            // Find new calculated values for each new position
+            plotData.cd = new float[plotData.indep.Length];
+            for (var i = 0; i < plotData.indep.Length; i++)
+                plotData.cd[i] = (float)interpolatorC.Interpolate(plotData.indep[i]);
 
             // Resample calculated dose with new indep
             // TODO:

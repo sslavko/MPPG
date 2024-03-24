@@ -15,9 +15,10 @@ namespace MPPG
              * isocenter in the plane for the given beam, or other way around
              */
             public Float3Struct? Offset { get; internal set; }
-            public List<float> X { get; internal set; }
-            public List<float> Y { get; internal set; }
-            public List<float> Z { get; internal set; }
+            public float[] X { get; internal set; }
+            public float[] Y { get; internal set; }
+            public float[] Z { get; internal set; }
+            public float[,,] V { get; internal set; }
         }
 
         public static CalculatedData Read(DICOMSelector dcmSel, PixelStream pixelStream, string filePath)
@@ -163,27 +164,34 @@ namespace MPPG
 
             // Establish Coordinate System[in cm]
             // Note: PixelSpacing indices do not match ImagePositionPatient indices.
-            calcData.X = new(cols);
+            calcData.X = new float[cols];
             for(int i = 0; i < cols; i++)
-                calcData.X.Add((float)(imagePositionPatient[0] + pixelSpacing[1] * i) / 10 - offset.X);
+                calcData.X[i] = (float)(imagePositionPatient[0] + pixelSpacing[1] * i) / 10 - offset.X;
 
-            calcData.Y = new(rows);
+            calcData.Y = new float[rows];
             for (int i = 0; i < rows; i++)
-                calcData.Y.Add((float)(imagePositionPatient[1] + pixelSpacing[0] * i) / 10 - offset.Y);
+                calcData.Y[i] = (float)(imagePositionPatient[1] + pixelSpacing[0] * i) / 10 - offset.Y;
 
             var data = dcmSel.GridFrameOffsetVector.Data_;
-            calcData.Z = new(data.Count);
+            calcData.Z = new float[data.Count];
             for (int i = 0; i < data.Count; i++)
-                calcData.Z.Add((float)(imagePositionPatient[2] + data[i]) / 10 - offset.Z);
+                calcData.Z[i] = (float)(imagePositionPatient[2] + data[i]) / 10 - offset.Z;
 
-            /*var sr = new BinaryReader(pixelStream);
-            var bits = dcmSel.BitsStored.Data;
-            var p = sr.ReadUInt16();
+            var sr = new BinaryReader(pixelStream);
 
-            var scale = dcmSel.DoseGridScaling.Data;*/
+            // TODO: Can data be stored as anything else?
+            // var bits = dcmSel.BitsStored.Data;
 
-            /*if (dcmSel.DoseUnits.Data == "CGY")
-                dose = dose / 100;*/
+            var scale = dcmSel.DoseGridScaling.Data;
+
+            if (dcmSel.DoseUnits.Data == "CGY")
+                scale /= 100;
+
+            calcData.V = new float[calcData.X.Length, calcData.Y.Length, calcData.Z.Length];
+            for (int z = 0; z < calcData.Z.Length; z++)
+                for (int y = 0; y < calcData.Y.Length; y++)
+                    for (int x = 0; x < calcData.X.Length; x++)
+                        calcData.V[x, y, z] = (float)(sr.ReadUInt16() * scale);
 
             return false;
         }
