@@ -30,6 +30,7 @@ using System.Drawing;
 using System.Runtime.Intrinsics.Arm;
 using OpenTK;
 using static MPPG.AscReader;
+using System.Runtime.CompilerServices;
 
 namespace MPPG
 {
@@ -262,6 +263,7 @@ namespace MPPG
             internal float? normLoc; // Normalization location if provided, or null if Dmax is used
             internal string plotTitle;
             internal string horAxisText;
+            internal float threshold;
         }
 
         private void Plot(PlotData plotData)
@@ -281,14 +283,18 @@ namespace MPPG
             graph.MarkerStyle = MarkerStyle.None;
 
             // subplot(3, 1, 1); plot(regCalc(:, 1), regCalc(:, 2), 'r--', 'Linewidth', 2);
-            graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.md);
+            graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.cd);
             graph.Label = "TPS";
             graph.Color = ScottPlot.Color.FromARGB(0xffff0000);
             graph.LineStyle.Pattern = LinePattern.Dashed;
             graph.MarkerStyle = MarkerStyle.None;
 
             // subplot(3,1,1); plot(regCalc(:, 1),usrThrs*ones(size(regCalc(:, 1))),'m:','Linewidth',.1)
-            graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.md);
+            var threshold = new float[plotData.cd.Length];
+            for (int i = 0; i < threshold.Length; i++)
+                threshold[i] = plotData.threshold;
+
+            graph = relDosePlot.Plot.Add.Scatter(plotData.indep, threshold);
             graph.Label = "Threshold";
             graph.Color = ScottPlot.Color.FromARGB(0xffff00ff);
             graph.LineStyle.Pattern = LinePattern.Dotted;
@@ -389,6 +395,48 @@ namespace MPPG
         {
             for (int i = 0; i < list.Length; i++)
                 list[i] = val;
+        }
+
+        private static int FindNearestIndex(float[] arr, float val)
+        {
+            if (arr[0] < arr[^1])
+            {
+                // Ascending array
+                if (val <= arr[0])
+                    return 0;
+
+                if (val >= arr[^1])
+                    return arr.Length - 1;
+
+                for (int i = 0; i < arr.Length - 1; i++)
+                    if (val >= arr[i] && val < arr[i + 1])
+                    {
+                        if (val - arr[i] < arr[i + 1] - val)
+                            return i;
+                        else
+                            return i + 1;
+                    }
+            }
+            else
+            {
+                // Descending array
+                if (val >= arr[0])
+                    return 0;
+
+                if (val <= arr[^1])
+                    return arr.Length - 1;
+
+                for (int i = 0; i < arr.Length - 1; i++)
+                    if (val <= arr[i] && val > arr[i + 1])
+                    {
+                        if (arr[i] - val < val - arr[i + 1])
+                            return i;
+                        else
+                            return i + 1;
+                    }
+            }
+
+            return -1;
         }
 
         /* Evaluate the calculated dose grid to determine if the measure profile fits inside
@@ -512,7 +560,7 @@ namespace MPPG
         private PlotData PrepareData(SingleMeasurement measurement)
         {
             var measData = measurement.BeamData;
-            var calData = dcm.Value;
+            var calcData = dcm.Value;
 
             // Determine what measured dimension to use for independent variable:
 
@@ -557,13 +605,13 @@ namespace MPPG
             // The following code checks for this condition, determines how large it is and resamples to a uniform spacing.
 
             // X
-            var space = FindSpacing(calData.X);
+            var space = FindSpacing(calcData.X);
             if (space > 0.001) // is it larger than 1 / 100 mm?
             {
                 MessageBox.Show(string.Format("WARNING: The calculated x-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
                                 "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-                LineSpace(calData.X);
+                LineSpace(calcData.X);
             }
             else if (space > 0.0) // is it larger than 0 mm?
             {
@@ -572,13 +620,13 @@ namespace MPPG
             }
 
             // Y
-            space = FindSpacing(calData.Y);
+            space = FindSpacing(calcData.Y);
             if (space > 0.001) // is it larger than 1 / 100 mm?
             {
                 MessageBox.Show(string.Format("WARNING: The calculated y-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
                                 "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-                LineSpace(calData.Y);
+                LineSpace(calcData.Y);
             }
             else if (space > 0.0) // is it larger than 0 mm?
             {
@@ -587,13 +635,13 @@ namespace MPPG
             }
 
             // Z
-            space = FindSpacing(calData.Z);
+            space = FindSpacing(calcData.Z);
             if (space > 0.001) // is it larger than 1 / 100 mm?
             {
                 MessageBox.Show(string.Format("WARNING: The calculated z-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
                                 "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-                LineSpace(calData.Z);
+                LineSpace(calcData.Z);
             }
             else if (space > 0.0) // is it larger than 0 mm?
             {
@@ -631,17 +679,40 @@ namespace MPPG
 
             // Find nearest calculated values
             var calcVals = new double[idm.Length];
-            for (int i = 0; i < calcVals.Length; i++)
+            int xIndex, yIndex, zIndex;
+
+            switch (measurement.AxisType)
             {
-                switch (measurement.AxisType)
-                {
-                    case 'X':
-                        break;
-                    case 'Y':
-                        break;
-                    case 'Z':
-                        break;
-                }
+                case 'X':
+                    yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
+                    zIndex = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
+                    for (int i = 0; i < calcVals.Length; i++)
+                    {
+                        var x = FindNearestIndex(calcData.X, idm[i]);
+                        calcVals[i] = calcData.V[x, yIndex, zIndex];
+                    }
+
+                    break;
+                case 'Z':
+                    xIndex = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
+                    zIndex = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
+                    for (int i = 0; i < calcVals.Length; i++)
+                    {
+                        var y = FindNearestIndex(calcData.Y, idm[i]);
+                        calcVals[i] = calcData.V[xIndex, y, zIndex];
+                    }
+
+                    break;
+                case 'Y':
+                    xIndex = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
+                    yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
+                    for (int i = 0; i < calcVals.Length; i++)
+                    {
+                        var z = FindNearestIndex(calcData.Z, idm[i]);
+                        calcVals[i] = calcData.V[xIndex, yIndex, z];
+                    }
+
+                    break;
             }
 
             // Resample calculated values with new indep
@@ -663,13 +734,17 @@ namespace MPPG
             // Use user preferences to determine normalization location
             var settings = new Properties.Settings();
             plotData.normLoc = null;
+            string normText = "";
             switch (measurement.AxisType)
             {
                 case 'X':
                     // The x position of the measurement changes, so the profile must have some crossline profile component.
                     // Normalization based on crossline normalization preferences:
                     if (settings.NormInCrossMan)
+                    {
                         plotData.normLoc = settings.crossX;
+                        normText = string.Format("Profiles normalized at X = {0:F2} cm", plotData.normLoc);
+                    }
 
                     plotData.horAxisText = "Crossline Position (X) [cm]";
                     plotData.plotTitle = string.Format("Crossline Profiles at Depth(Y) = {0:F2} cm, Inline Position(Z) = {1:F2} cm",
@@ -677,23 +752,29 @@ namespace MPPG
                         measurement.BeamData.Y[0]);
                     break;
                 case 'Y':
-                    // The depth of the measurement changes, so the profile must have some depth dose component.
-                    // Normalization based on PDD normalization preferences:
-                    if (settings.normDepthMan)
-                        plotData.normLoc = settings.depthY;
+                    // The y position of the measurement changes, so the profile must have some inline profile component.
+                    // Normalization based on inline normalization preferences:
+                    if (settings.NormInCrossMan)
+                    {
+                        plotData.normLoc = settings.inlineZ;
+                        normText = string.Format("Profiles normalized at Z = {0:F2} cm", plotData.normLoc);
+                    }
 
-                    plotData.horAxisText = "Depth (Y) [cm]";
+                    plotData.horAxisText = "Inline Position (Z) [cm]";
                     plotData.plotTitle = string.Format("Inline Profiles at Depth(Y) = {0:F2} cm, Crossline Position(X) = {1:F2} cm",
                         measurement.BeamData.Z[0],
                         measurement.BeamData.X[0]);
                     break;
                 case 'Z':
-                    // The y position of the measurement changes, so the profile must have some inline profile component.
-                    // Normalization based on inline normalization preferences:
-                    if (settings.NormInCrossMan)
-                        plotData.normLoc = settings.inlineZ;
+                    // The depth of the measurement changes, so the profile must have some depth dose component.
+                    // Normalization based on PDD normalization preferences:
+                    if (settings.normDepthMan)
+                    {
+                        plotData.normLoc = settings.depthY;
+                        normText = string.Format("Profiles normalized at Y = {0:F2} cm", plotData.normLoc);
+                    }
 
-                    plotData.horAxisText = "Inline Position (Z) [cm]";
+                    plotData.horAxisText = "Depth (Y) [cm]";
                     plotData.plotTitle = string.Format("Depth-Dose Profiles at Crossline Position (X) = {0:F2} cm, Inline Position (Z) = {1:F2} cm",
                         measurement.BeamData.X[0],
                         measurement.BeamData.Y[0]);
@@ -711,18 +792,16 @@ namespace MPPG
                     break;
             }
 
-            string normText;
-            if (plotData.normLoc.HasValue)
-                normText = string.Format("Profiles normalized at {0} = {1:F2} cm", measurement.AxisType, plotData.normLoc);
-            else
+            if (!plotData.normLoc.HasValue)
                 normText = "Profiles normalized at maximum dose location for each profile";
 
             plotData.plotTitle = string.Format("{0}{1}{2}{1}{3}", 
-                                                Path.GetFileNameWithoutExtension(txtASCFile.Text), 
+                                                Path.GetFileNameWithoutExtension(txtDCMFile.Text), 
                                                 Environment.NewLine, 
                                                 plotData.plotTitle, 
                                                 normText);
 
+            // Measured data are always normalized with maximum value
             var maxVal = plotData.md.Max();
             for (int i = 0; i < plotData.md.Length; i++)
                 plotData.md[i] /= maxVal;
@@ -730,21 +809,30 @@ namespace MPPG
             if (plotData.normLoc.HasValue)
             {
                 // Normalization position is specified by user
-                /*
-                    md = md / max(md);
-                    cd_ref = interp1(indep, cd, normLoc);
-                    cd = (cd / interp1(indep, cd, normLoc)) * interp1(indep, md, normLoc);
-                */
+                plotData.cdRef = (float)interpolatorC.Interpolate(plotData.normLoc.Value);
+
+                var interpolatorMNorm = MathNet.Numerics.Interpolation.LinearSpline.Interpolate(
+                    plotData.indep.Select(n => (double)n),
+                    plotData.md.Select(n => (double)n));
+
+                // QUESTION: Why do we multiply with measured value?
+                var m = (float)interpolatorMNorm.Interpolate(plotData.normLoc.Value);
+                var q = plotData.cdRef * m;
+                for (int i = 0; i < plotData.cd.Length; i++)
+                    plotData.cd[i] /= q;
             }
             else
             {
-                // Use maximum measured value for normalization
-                /*
-                    md = md / max(md);
-                    cd_ref = max(cd);
-                    cd = cd / max(cd);
-                 */
+                // Use maximum value for normalization
+                plotData.cdRef = plotData.cd.Max();
+                for (int i = 0; i < plotData.cd.Length; i++)
+                    plotData.cd[i] /= plotData.cdRef;
             }
+
+            if (settings.useThreshold)
+                plotData.threshold = settings.threshold / 100;
+            else
+                plotData.threshold = 0;
 
             return plotData;
         }

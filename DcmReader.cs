@@ -187,13 +187,25 @@ namespace MPPG
             if (dcmSel.DoseUnits.Data == "CGY")
                 scale /= 100;
 
+            int maxX = 0, maxY = 0, maxZ = 0;
+            float maxV = 0f;
             calcData.V = new float[calcData.X.Length, calcData.Y.Length, calcData.Z.Length];
             for (int z = 0; z < calcData.Z.Length; z++)
                 for (int y = 0; y < calcData.Y.Length; y++)
                     for (int x = 0; x < calcData.X.Length; x++)
-                        calcData.V[x, y, z] = (float)(sr.ReadUInt16() * scale);
+                    {
+                        var v = sr.ReadUInt16();
+                        calcData.V[x, y, z] = (float)(v * scale);
+                        if (maxV < v * scale)
+                        {
+                            maxV = (float)(v * scale);
+                            maxX = x;
+                            maxY = y;
+                            maxZ = z;
+                        }
+                    }
 
-            return false;
+            return true;
         }
     }
 }
