@@ -218,12 +218,14 @@ namespace MPPG
         {
             if (int.TryParse(txtPageNum.Text, out int val) && val >= 1 && val <= asc.Value.NumberOfMeasurements)
             {
+                Cursor = Cursors.WaitCursor;
                 pageNum = val;
                 ClearGraphs();
                 var plotData = PrepareData(asc.Value.Data[pageNum - 1]);
-                VerifyData(plotData);
+                VerifyData(ref plotData);
                 Plot(plotData);
                 CheckPageButtons();
+                Cursor = Cursors.Default;
             }
 
             txtPageNum.Text = pageNum.ToString();
@@ -245,7 +247,7 @@ namespace MPPG
                 CheckData(measurements.Data[0], i + 1);
 
             PlotData plotData = PrepareData(measurements.Data[0]);
-            VerifyData(plotData);
+            VerifyData(ref plotData);
             Plot(plotData);
 
             txtPageNum.Enabled = true;
@@ -259,11 +261,13 @@ namespace MPPG
             internal float[] indep;
             internal float[] md;
             internal float[] cd;
+            internal float[] gamma;
             internal float cdRef;
             internal float? normLoc; // Normalization location if provided, or null if Dmax is used
             internal string plotTitle;
             internal string horAxisText;
             internal float threshold;
+            internal float passRate;
         }
 
         private void Plot(PlotData plotData)
@@ -301,6 +305,7 @@ namespace MPPG
             graph.MarkerStyle = MarkerStyle.None;
 
             relDosePlot.Plot.XLabel(plotData.horAxisText);
+            relDosePlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
             relDosePlot.Plot.YLabel("Relative Dose");
             relDosePlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
             relDosePlot.Refresh();
@@ -323,19 +328,21 @@ namespace MPPG
             drawingPanel.Controls.Add(gamaPlot, 0, 1);
 
             // subplot(3,1,2); plot(regMeas(:, 1),gam,'b','Linewidth',2);
-            graph = gamaPlot.Plot.Add.Scatter(plotData.indep, plotData.md);
+            graph = gamaPlot.Plot.Add.Scatter(plotData.indep, plotData.gamma);
             graph.Label = "Threshold";
             graph.Color = ScottPlot.Color.FromARGB(0xff0000ff);
             graph.MarkerStyle = MarkerStyle.None;
 
             gamaPlot.Plot.XLabel(plotData.horAxisText);
+            gamaPlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
             gamaPlot.Plot.YLabel("Gamma");
+            gamaPlot.Plot.Axes.SetLimitsY(0, 1.5);
             gamaPlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
             gamaPlot.Refresh();
 
             var passRateLabel = new System.Windows.Forms.Label()
             {
-                Text = string.Format("Pass rate: {0:F1}%", 100),
+                Text = string.Format("Pass rate: {0:F1}%", plotData.passRate),
                 Location = new Point(40, 5),
                 AutoSize = true
             };
@@ -364,7 +371,9 @@ namespace MPPG
             graph.MarkerStyle = MarkerStyle.None;
 
             auPlot.Plot.XLabel(plotData.horAxisText);
+            auPlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
             auPlot.Plot.YLabel("AU");
+            auPlot.Plot.Axes.SetLimitsY(0, 1.5);
             auPlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
             auPlot.Refresh();
         }
@@ -673,8 +682,8 @@ namespace MPPG
                 measData.V.Select(n => (double)n));
 
             // Find new measured values for each new position
-            plotData.md = new float[plotData.indep.Length];
-            for (var i = 0; i < plotData.indep.Length; i++)
+            plotData.md = new float[numberOfPoints];
+            for (var i = 0; i < numberOfPoints; i++)
                 plotData.md[i] = (float)interpolatorM.Interpolate(plotData.indep[i]);
 
             // Find nearest calculated values
@@ -721,8 +730,8 @@ namespace MPPG
                 calcVals);
 
             // Find new calculated values for each new position
-            plotData.cd = new float[plotData.indep.Length];
-            for (var i = 0; i < plotData.indep.Length; i++)
+            plotData.cd = new float[numberOfPoints];
+            for (var i = 0; i < numberOfPoints; i++)
                 plotData.cd[i] = (float)interpolatorC.Interpolate(plotData.indep[i]);
 
             // Resample calculated dose with new indep
@@ -834,6 +843,8 @@ namespace MPPG
             else
                 plotData.threshold = 0;
 
+            plotData.gamma = new float[numberOfPoints];
+
             return plotData;
         }
 
@@ -862,7 +873,7 @@ namespace MPPG
          *   D.A.Low and J.F.Dempsey.Evaluation of the gamma dose distribution
          *   comparison method.Medical Physics, 30(5):2455 2464, 2003.
          */
-        private void VerifyData(PlotData plotData)
+        private void VerifyData(ref PlotData plotData)
         {
             var settings = new Properties.Settings();
 
@@ -872,80 +883,61 @@ namespace MPPG
             // Dose threshold
             var doseThr = settings.doseDiff / 100; // Convert from percent to decimal
 
-            // Compute distance error (in mm)
             var len = plotData.indep.Length;
-            var distThr2 = distThr * distThr;
-            var err = new float[len, len];
-            for (int col = 0; col < plotData.indep.Length; col++)
-                for (int row = 0; row < plotData.indep.Length; row++)
+            var distThrSquared = distThr * distThr;
+            var doseThrSquared = doseThr * doseThr;
+            var gammaSquaredMinColumn = new float[len];
+            for (int i = 0; i < len; i++)
+                gammaSquaredMinColumn[i] = float.PositiveInfinity;
+
+            var gammaIndex = new int[len];
+            var distMinGamma = new float[len];
+            var doseMinGamma = new float[len];
+            for (int col = 0; col < len; col++)
+            {
+                var minRowIndex = 0;
+                var minDistErr = 0f;
+                var minDoseErr = 0f;
+                for (int row = 0; row < len; row++)
                 {
-                    var d = (plotData.indep[row] - plotData.indep[col]) * 10; // convert to mm
-                    err[row, col] = d * d / distThr2;
+                    // Compute distance error (in mm)
+                    var d = (plotData.indep[col] - plotData.indep[row]) * 10; // convert to mm
+                    var distErr = d * d / distThrSquared;
+
+                    // Compute dose error
+                    d = plotData.md[col] - plotData.cd[row];
+                    if (settings.doseAnalysisLocal)
+                        d /= plotData.md[col];
+
+                    var doseErr = d * d / doseThrSquared;
+
+                    var gammaSquared = distErr + doseErr;
+                    if (gammaSquared < gammaSquaredMinColumn[row])
+                    {
+                        gammaSquaredMinColumn[row] = gammaSquared;
+                        minRowIndex = row;
+                        minDistErr = distErr;
+                        minDoseErr = doseErr;
+                    }
                 }
+                gammaIndex[col] = minRowIndex;
+                distMinGamma[col] = (float)Math.Sqrt(minDistErr);
+                doseMinGamma[col] = (float)Math.Sqrt(minDoseErr);
+            }
 
-            /*var len = plotData.indep.Length;
-            rm = repmat(10 * regMeas(:, 1), 1, len); // convert to mm
-            rc = repmat(10 * regCalc(:, 1)',len,1);  // convert to mm
-            rE = (rm - rc).^ 2;
-
-            rEThr = rE./ (distThr.^ 2);
-
-            // Compute dose error
-            Drm = repmat(regMeas(:, 2), 1, len);
-            Drc = repmat(regCalc(:, 2)',len,1);
-            if (globAna)
-                dE = ((Drm - Drc) / 1).^ 2;
-            else
-                dE = ((Drm - Drc)./ Drm).^ 2;
-            end
-
-            dEThr = dE./ ((doseThr).^ 2);
-            gam2 = rEThr + dEThr;
-
-            // take min down columns to get gamma as a function of position
-            [gam Ir] = min(gam2); % Ir is the row index where the min gamma was found
-            gam = sqrt(gam);
-
-            // get distance error at minimum gamma
-            Ic = 1:len; // make column index array
-            I = sub2ind(size(rm), Ir, Ic); // convert to linear indices
-            distMinGam = sqrt(rEThr(I)); // distance error at minimum gamma position
-            doseMinGam = sqrt(dEThr(I)); // dose error at minimum gamma position
-
-            // get distance to minimum dose difference
-            [mDose IMDr] = min(dE);
-
-            // Compute the gamma statistics
-            aboveTh = 0;
-            aboveThPass = 0;
-            gamma_max = 0;
-            gamma_sum = 0;
-            gamma_sum_2 = 0;
-            zero_flag = 1;
-
-            for i = 1:length(gam)
-                if regMeas(i, 2) >= usrThrs && regCalc(i, 2) > 0
-
-                    // Update maximum gamma
-                    if gam(i) > gamma_max, gamma_max = gam(i); end
-
-                    // Update mean and std stats
-                    gamma_sum = gamma_sum + gam(i);
-                    gamma_sum_2 = gamma_sum_2 + gam(i) * gam(i);
-
-                    // Update counts
-                    aboveTh = aboveTh + 1;
-                    if gam(i) <= 1
-                        aboveThPass = aboveThPass + 1;
-                    end
-                end
-            end
-
-            gamma_mean = gamma_sum / aboveTh;
-            gamma_std = sqrt(gamma_sum_2 / aboveTh - gamma_sum * gamma_sum / aboveTh / aboveTh);
-            passRt = aboveThPass / aboveTh * 100;
-            gamma_stats = [gamma_max gamma_mean gamma_std aboveTh aboveThPass passRt];*/
-
+            var aboveTh = 0;
+            var aboveThPass = 0;
+            for (int i = 0; i < len; i++)
+            {
+                plotData.gamma[i] = (float)Math.Sqrt(gammaSquaredMinColumn[i]);
+                if (plotData.md[i] > plotData.threshold && plotData.cd[i] > 0)
+                {
+                    aboveTh++;
+                    if (plotData.gamma[i] <= 1)
+                        aboveThPass++;
+                }
+            }
+            plotData.passRate = (float)aboveThPass / aboveTh * 100;
         }
     }
 }
