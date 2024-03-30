@@ -149,9 +149,9 @@
                         if (line.StartsWith('='))
                         {
                             var lineParts = line.Split('\t', StringSplitOptions.TrimEntries);
-                            var x = float.Parse(lineParts[2]) / 10; // cm
+                            var x = float.Parse(lineParts[2]) / 10;  // cm
                             var y = -float.Parse(lineParts[1]) / 10; // cm
-                            var z = float.Parse(lineParts[3]) / 10; // cm
+                            var z = float.Parse(lineParts[3]) / 10;  // cm
                             var v = float.Parse(lineParts[4]);
 
                             // Track minimum and maximum values
@@ -171,9 +171,33 @@
 
                         line = reader.ReadLine();
                     }
-                    if (maxX - minX > .1) measurement.AxisType = 'X';
-                    if (maxY - minY > .1) measurement.AxisType = 'Y';
-                    if (maxZ - minZ > .1) measurement.AxisType = 'Z';
+                    if (maxX - minX > .1)
+                    {
+                        measurement.AxisType = 'X';
+                        if (measurement.BeamData.X[0] > measurement.BeamData.X[^1])
+                        {
+                            measurement.BeamData.X.Reverse().ToArray().CopyTo(measurement.BeamData.X, 0);
+                            measurement.BeamData.V.Reverse().ToArray().CopyTo(measurement.BeamData.V, 0);
+                        }
+                    }
+                    if (maxY - minY > .1)
+                    {
+                        measurement.AxisType = 'Y';
+                        if (measurement.BeamData.Y[0] > measurement.BeamData.Y[^1])
+                        {
+                            measurement.BeamData.Y.Reverse().ToArray().CopyTo(measurement.BeamData.Y, 0);
+                            measurement.BeamData.V.Reverse().ToArray().CopyTo(measurement.BeamData.V, 0);
+                        }
+                    }
+                    if (maxZ - minZ > .1)
+                    {
+                        measurement.AxisType = 'Z';
+                        if (measurement.BeamData.Z[0] > measurement.BeamData.Z[^1])
+                        {
+                            measurement.BeamData.Z.Reverse().ToArray().CopyTo(measurement.BeamData.Z, 0);
+                            measurement.BeamData.V.Reverse().ToArray().CopyTo(measurement.BeamData.V, 0);
+                        }
+                    }
                     if (measurement.AxisType == 'X' || measurement.AxisType == 'Y')
                         measurement.Depth = minZ;
 

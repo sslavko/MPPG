@@ -262,6 +262,8 @@ namespace MPPG
             internal float[] md;
             internal float[] cd;
             internal float[] gamma;
+            internal float[] distMinGamma;
+            internal float[] doseMinGamma;
             internal float cdRef;
             internal float? normLoc; // Normalization location if provided, or null if Dmax is used
             internal string plotTitle;
@@ -358,13 +360,13 @@ namespace MPPG
             auPlot.Plot.ShowLegend(Alignment.UpperRight);
 
             // subplot(3,1,3); plot(regMeas(:, 1),distMinGam,'b','Linewidth',2)
-            graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.md);
+            graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.distMinGamma);
             graph.Label = "distMinGam";
             graph.Color = ScottPlot.Color.FromARGB(0xff0000ff);
             graph.MarkerStyle = MarkerStyle.None;
 
             // subplot(3, 1, 3); plot(regMeas(:, 1), doseMinGam, 'r--', 'Linewidth', 2)
-            graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.md);
+            graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.doseMinGamma);
             graph.Label = "doseMinGam";
             graph.LineStyle.Pattern = LinePattern.Dashed;
             graph.Color = ScottPlot.Color.FromARGB(0xffff0000);
@@ -891,8 +893,8 @@ namespace MPPG
                 gammaSquaredMinColumn[i] = float.PositiveInfinity;
 
             var gammaIndex = new int[len];
-            var distMinGamma = new float[len];
-            var doseMinGamma = new float[len];
+            plotData.distMinGamma = new float[len];
+            plotData.doseMinGamma = new float[len];
             for (int col = 0; col < len; col++)
             {
                 var minRowIndex = 0;
@@ -921,8 +923,8 @@ namespace MPPG
                     }
                 }
                 gammaIndex[col] = minRowIndex;
-                distMinGamma[col] = (float)Math.Sqrt(minDistErr);
-                doseMinGamma[col] = (float)Math.Sqrt(minDoseErr);
+                plotData.distMinGamma[col] = (float)Math.Sqrt(minDistErr);
+                plotData.doseMinGamma[col] = (float)Math.Sqrt(minDoseErr);
             }
 
             var aboveTh = 0;
