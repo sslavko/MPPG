@@ -109,7 +109,7 @@ namespace MPPG
                     txtDCMOffset.Text = "";
                     dcm = null;
                 }
-                pixelStream.Close();
+                //pixelStream.Close();
             }
             else
             {
@@ -600,6 +600,7 @@ namespace MPPG
 
             // Check if any points of the measured data are at same location. Get rid of any measured
             // points that are at repeat locations, this will crash interpolation
+            // TODO: Move this code to AscReader
             for (int i = 1; i < idm.Length; i++)
             {
                 if (idm[i] - idm[i - 1] == 0)
@@ -614,6 +615,7 @@ namespace MPPG
             // Check for non-uniform dose grid axes. Some TPS(e.g. ViewRay) exports DICOM - RT dose files
             // that have rounding errors in the (X, Y, Z) positions, resulting in a non-uniform dose grid.
             // The following code checks for this condition, determines how large it is and resamples to a uniform spacing.
+            // TODO: Move this code to DcmReader and do it only once after file is read
 
             // X
             var space = FindSpacing(calcData.X);
@@ -895,6 +897,7 @@ namespace MPPG
             var gammaIndex = new int[len];
             plotData.distMinGamma = new float[len];
             plotData.doseMinGamma = new float[len];
+            var useLocalAnalysis = settings.doseAnalysisLocal;
             for (int col = 0; col < len; col++)
             {
                 var minRowIndex = 0;
@@ -908,7 +911,7 @@ namespace MPPG
 
                     // Compute dose error
                     d = plotData.md[col] - plotData.cd[row];
-                    if (settings.doseAnalysisLocal)
+                    if (useLocalAnalysis)
                         d /= plotData.md[col];
 
                     var doseErr = d * d / doseThrSquared;
