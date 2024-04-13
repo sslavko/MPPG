@@ -199,7 +199,7 @@ namespace MPPG
                 ClearGraphs();
                 var plotData = PrepareData(asc.Value.Data[pageNum - 1]);
                 VerifyData(ref plotData);
-                Plot(plotData);
+                Plot(plotData, drawingPanel, true);
                 CheckPageButtons();
                 Cursor = Cursors.Default;
             }
@@ -225,7 +225,7 @@ namespace MPPG
 
             PlotData plotData = PrepareData(measurements.Data[0]);
             VerifyData(ref plotData);
-            Plot(plotData);
+            Plot(plotData, drawingPanel,true);
 
             txtPageNum.Enabled = true;
             btnRightPageNo.Enabled = measurements.NumberOfMeasurements > 1;
@@ -249,16 +249,17 @@ namespace MPPG
             internal float passRate;
         }
 
-        private void Plot(PlotData plotData)
+        private void Plot(PlotData plotData, TableLayoutPanel panel, bool updateTitle)
         {
-            txtTitle.Text = plotData.plotTitle;
+            if (updateTitle)
+                txtTitle.Text = plotData.plotTitle;
 
             // Relative Dose plot
             var relDosePlot = new ScottPlot.WinForms.FormsPlot()
             {
                 Dock = DockStyle.Fill
             };
-            drawingPanel.Controls.Add(relDosePlot, 0, 0);
+            panel.Controls.Add(relDosePlot, 0, 0);
             relDosePlot.Plot.ShowLegend(Alignment.UpperRight);
             var graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.md);
             graph.Label = "Measured";
@@ -304,7 +305,7 @@ namespace MPPG
             {
                 Dock = DockStyle.Fill,
             };
-            drawingPanel.Controls.Add(gamaPlot, 0, 1);
+            panel.Controls.Add(gamaPlot, 0, 1);
 
             // subplot(3,1,2); plot(regMeas(:, 1),gam,'b','Linewidth',2);
             graph = gamaPlot.Plot.Add.Scatter(plotData.indep, plotData.gamma);
@@ -333,7 +334,7 @@ namespace MPPG
             {
                 Dock = DockStyle.Fill,
             };
-            drawingPanel.Controls.Add(auPlot, 0, 2);
+            panel.Controls.Add(auPlot, 0, 2);
             auPlot.Plot.ShowLegend(Alignment.UpperRight);
 
             // subplot(3,1,3); plot(regMeas(:, 1),distMinGam,'b','Linewidth',2)
@@ -902,10 +903,23 @@ namespace MPPG
             };
             if (dlg.ShowDialog() == DialogResult.OK)
             {
+                Cursor = Cursors.WaitCursor;
                 var doc = new Document();
-                doc.Info.Title = "Blah";
+                var bmpWidth = (int)(16 / 2.54 * 300);  // 16cm at 300dpi
+                var bmpHeight = (int)(10 / 2.54 * 300); // 10cm at 300dpi
 
                 var measurements = asc.Value;
+                var tempFiles = new List<string>();
+                var panel = new TableLayoutPanel
+                {
+                    Width = bmpWidth,
+                    Height = bmpHeight,
+                    RowCount = 3
+                };
+                panel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
+                panel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
+                panel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
+
                 for (int i = 0; i < measurements.NumberOfMeasurements; i++)
                 {
                     PlotData plotData = PrepareData(measurements.Data[i]);
@@ -913,11 +927,26 @@ namespace MPPG
 
                     var section = doc.AddSection();
                     section.AddParagraph(plotData.plotTitle).Format.Alignment = ParagraphAlignment.Center;
+
+                    Plot(plotData, panel, false);
+                    var bmp = new Bitmap(bmpWidth, bmpHeight);
+                    bmp.SetResolution(300, 300);
+                    panel.DrawToBitmap(bmp, new Rectangle(0, 0, bmpWidth, bmpHeight));
+                    panel.Controls.Clear();
+                    var bmpFile = Path.GetTempFileName() + ".png";
+                    bmp.Save(bmpFile, System.Drawing.Imaging.ImageFormat.Png);
+                    section.AddImage(bmpFile);
+                    tempFiles.Add(bmpFile);
                 }
                 var pdfRenderer = new PdfDocumentRenderer();
                 pdfRenderer.Document = doc;
                 pdfRenderer.RenderDocument();
                 pdfRenderer.PdfDocument.Save(dlg.FileName);
+
+                foreach (var tempFile in tempFiles)
+                    File.Delete(tempFile);
+
+                Cursor = Cursors.Default;
             }
         }
     }
