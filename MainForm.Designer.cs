@@ -99,6 +99,7 @@
             exportPDFToolStripMenuItem.Name = "exportPDFToolStripMenuItem";
             exportPDFToolStripMenuItem.Size = new Size(267, 26);
             exportPDFToolStripMenuItem.Text = "Export PDF";
+            exportPDFToolStripMenuItem.Click += OnExportPDF;
             // 
             // runToolStripMenuItem
             // 

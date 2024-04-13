@@ -177,7 +177,6 @@ namespace MPPG
             for (int i = 0; i < data.Count; i++)
                 calcData.Z[i] = (float)(imagePositionPatient[2] + data[i]) / 10 - offset.Z;
 
-            //var sr = new BinaryReader(pixelStream);
             var buf = new byte[pixelStream.Length];
             pixelStream.Read(buf, 0, buf.Length);
             pixelStream.Close();
@@ -197,7 +196,6 @@ namespace MPPG
                 for (int y = 0; y < calcData.Y.Length; y++)
                     for (int x = 0; x < calcData.X.Length; x++)
                     {
-                        //var v = sr.ReadUInt16();
                         var index = (x + y * calcData.X.Length + z * calcData.X.Length * calcData.Y.Length) * 2;
                         var v = (ushort)((buf[index]) | (buf[index + 1]) << 8);
                         calcData.V[x, y, z] = v * scale;

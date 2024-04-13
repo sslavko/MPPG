@@ -1,36 +1,10 @@
 using EvilDICOM.Core;
 using EvilDICOM.Core.Extensions;
-using EvilDICOM.Network.PDUs;
-using Microsoft.Extensions.Logging;
-using Microsoft.VisualBasic.ApplicationServices;
 using ScottPlot;
-using ScottPlot.Colormaps;
-using ScottPlot.Hatches;
-using ScottPlot.Plottables;
-using System;
-using static System.ComponentModel.Design.ObjectSelectorEditor;
-using System.Security.Cryptography;
-using System.Security.Principal;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using EvilDICOM.RT.Data.DVH;
-using static System.Reflection.Metadata.BlobBuilder;
-using System.Collections.Generic;
-using System.Runtime.Intrinsics.X86;
-using System.Threading.Channels;
-using System.Diagnostics.Metrics;
-using OpenTK.Audio.OpenAL;
-using System.ComponentModel;
-using System.Security.Cryptography.Xml;
-using Microsoft.VisualBasic.Devices;
-using ScottPlot.Panels;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using System.Data.Common;
-using System.Diagnostics;
-using System.Drawing;
-using System.Runtime.Intrinsics.Arm;
-using OpenTK;
 using static MPPG.AscReader;
-using System.Runtime.CompilerServices;
+using MigraDoc;
+using MigraDoc.DocumentObjectModel;
+using MigraDoc.Rendering;
 
 namespace MPPG
 {
@@ -87,6 +61,7 @@ namespace MPPG
         private void OpenCalculatedFile(string filePath)
         {
             ClearGraphs();
+            exportPDFToolStripMenuItem.Enabled = false;
             Cursor = Cursors.WaitCursor;
             txtDCMFile.Text = Path.GetFileName(filePath);
             var dcmFile = DICOMObject.Read(filePath);
@@ -139,6 +114,7 @@ namespace MPPG
         {
             ClearPages();
             ClearGraphs();
+            exportPDFToolStripMenuItem.Enabled = false;
             txtASCFile.Text = Path.GetFileName(filePath);
             asc = AscReader.Read(filePath);
             if (asc != null)
@@ -240,6 +216,7 @@ namespace MPPG
 
             ClearPages();
             ClearGraphs();
+            exportPDFToolStripMenuItem.Enabled = true;
 
             var measurements = asc.Value;
 
@@ -285,13 +262,13 @@ namespace MPPG
             relDosePlot.Plot.ShowLegend(Alignment.UpperRight);
             var graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.md);
             graph.Label = "Measured";
-            graph.Color = ScottPlot.Color.FromARGB(0xff0000ff);
+            graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
             // subplot(3, 1, 1); plot(regCalc(:, 1), regCalc(:, 2), 'r--', 'Linewidth', 2);
             graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.cd);
             graph.Label = "TPS";
-            graph.Color = ScottPlot.Color.FromARGB(0xffff0000);
+            graph.Color = ScottPlot.Colors.Red;
             graph.LineStyle.Pattern = LinePattern.Dashed;
             graph.MarkerStyle = MarkerStyle.None;
 
@@ -302,14 +279,14 @@ namespace MPPG
 
             graph = relDosePlot.Plot.Add.Scatter(plotData.indep, threshold);
             graph.Label = "Threshold";
-            graph.Color = ScottPlot.Color.FromARGB(0xffff00ff);
+            graph.Color = ScottPlot.Colors.Magenta;
             graph.LineStyle.Pattern = LinePattern.Dotted;
             graph.MarkerStyle = MarkerStyle.None;
 
             relDosePlot.Plot.XLabel(plotData.horAxisText);
             relDosePlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
             relDosePlot.Plot.YLabel("Relative Dose");
-            relDosePlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
+            relDosePlot.Plot.FigureBackground.Color = ScottPlot.Colors.White;
             relDosePlot.Refresh();
 
             var tpsDoseLabel = new System.Windows.Forms.Label()
@@ -332,14 +309,14 @@ namespace MPPG
             // subplot(3,1,2); plot(regMeas(:, 1),gam,'b','Linewidth',2);
             graph = gamaPlot.Plot.Add.Scatter(plotData.indep, plotData.gamma);
             graph.Label = "Threshold";
-            graph.Color = ScottPlot.Color.FromARGB(0xff0000ff);
+            graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
             gamaPlot.Plot.XLabel(plotData.horAxisText);
             gamaPlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
             gamaPlot.Plot.YLabel("Gamma");
             gamaPlot.Plot.Axes.SetLimitsY(0, 1.5);
-            gamaPlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
+            gamaPlot.Plot.FigureBackground.Color = ScottPlot.Colors.White;
             gamaPlot.Refresh();
 
             var passRateLabel = new System.Windows.Forms.Label()
@@ -362,21 +339,21 @@ namespace MPPG
             // subplot(3,1,3); plot(regMeas(:, 1),distMinGam,'b','Linewidth',2)
             graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.distMinGamma);
             graph.Label = "distMinGam";
-            graph.Color = ScottPlot.Color.FromARGB(0xff0000ff);
+            graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
             // subplot(3, 1, 3); plot(regMeas(:, 1), doseMinGam, 'r--', 'Linewidth', 2)
             graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.doseMinGamma);
             graph.Label = "doseMinGam";
             graph.LineStyle.Pattern = LinePattern.Dashed;
-            graph.Color = ScottPlot.Color.FromARGB(0xffff0000);
+            graph.Color = ScottPlot.Colors.Red;
             graph.MarkerStyle = MarkerStyle.None;
 
             auPlot.Plot.XLabel(plotData.horAxisText);
             auPlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
             auPlot.Plot.YLabel("AU");
             auPlot.Plot.Axes.SetLimitsY(0, 1.5);
-            auPlot.Plot.FigureBackground = ScottPlot.Color.FromARGB(0xffffffff);
+            auPlot.Plot.FigureBackground.Color = ScottPlot.Colors.White;
             auPlot.Refresh();
         }
 
@@ -690,57 +667,48 @@ namespace MPPG
             for (var i = 0; i < numberOfPoints; i++)
                 plotData.md[i] = (float)interpolatorM.Interpolate(plotData.indep[i]);
 
-            // Find nearest calculated values
-            var calcVals = new double[idm.Length];
+            // Find new calculated values for each new position
             int xIndex, yIndex, zIndex;
+            double[] horAxis = null;
+            double[] calcVals = null;
 
             switch (measurement.AxisType)
             {
                 case 'X':
                     yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
                     zIndex = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
-                    for (int i = 0; i < calcVals.Length; i++)
-                    {
-                        var x = FindNearestIndex(calcData.X, idm[i]);
-                        calcVals[i] = calcData.V[x, yIndex, zIndex];
-                    }
+                    calcVals = new double[calcData.X.Length];
+                    for (int i = 0; i < calcData.X.Length; i++)
+                        calcVals[i] = calcData.V[i, yIndex, zIndex];
 
+                    horAxis = calcData.X.Select(n => (double)n).ToArray();
                     break;
                 case 'Z':
                     xIndex = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
                     zIndex = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
+                    calcVals = new double[calcData.Y.Length];
                     for (int i = 0; i < calcVals.Length; i++)
-                    {
-                        var y = FindNearestIndex(calcData.Y, idm[i]);
-                        calcVals[i] = calcData.V[xIndex, y, zIndex];
-                    }
+                        calcVals[i] = calcData.V[xIndex, i, zIndex];
 
+                    horAxis = calcData.Y.Select(n => (double)n).ToArray();
                     break;
                 case 'Y':
                     xIndex = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
                     yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
+                    calcVals = new double[calcData.Z.Length];
                     for (int i = 0; i < calcVals.Length; i++)
-                    {
-                        var z = FindNearestIndex(calcData.Z, idm[i]);
-                        calcVals[i] = calcData.V[xIndex, yIndex, z];
-                    }
+                        calcVals[i] = calcData.V[xIndex, yIndex, i];
 
+                    horAxis = calcData.Z.Select(n => (double)n).ToArray();
                     break;
             }
 
-            // Resample calculated values with new indep
-            var interpolatorC = MathNet.Numerics.Interpolation.CubicSpline.InterpolateNatural(
-                reqPos,
-                calcVals);
+            var interpolatorC = MathNet.Numerics.Interpolation.CubicSpline.InterpolateNatural(horAxis, calcVals);
 
-            // Find new calculated values for each new position
+            // Resample calculated values with new indep
             plotData.cd = new float[numberOfPoints];
             for (var i = 0; i < numberOfPoints; i++)
                 plotData.cd[i] = (float)interpolatorC.Interpolate(plotData.indep[i]);
-
-            // Resample calculated dose with new indep
-            // TODO:
-            //cd = interp3(cx, cy, cz, calcData, linspace(mx(1), mx(end), PTS), linspace(mz(1), mz(end), PTS), linspace(my(1), my(end), PTS), '*cubic');
 
             // QUESTION: Can we do this before resampling? It is faster to normalize original values before resampling - less calculations
             // Apply normalization preferences:
@@ -808,10 +776,10 @@ namespace MPPG
             if (!plotData.normLoc.HasValue)
                 normText = "Profiles normalized at maximum dose location for each profile";
 
-            plotData.plotTitle = string.Format("{0}{1}{2}{1}{3}", 
-                                                Path.GetFileNameWithoutExtension(txtDCMFile.Text), 
-                                                Environment.NewLine, 
-                                                plotData.plotTitle, 
+            plotData.plotTitle = string.Format("{0}{1}{2}{1}{3}",
+                                                Path.GetFileNameWithoutExtension(txtDCMFile.Text),
+                                                Environment.NewLine,
+                                                plotData.plotTitle,
                                                 normText);
 
             // Measured data are always normalized with maximum value
@@ -853,54 +821,36 @@ namespace MPPG
         }
 
         /*
-         * vOut = VerifyData(regMeas, regCalc, plotOn, distThr, doseThr)
-         * Perform 1D gamma evaluation
-         *
-         * Input:
-         *   regMeas - col 1 = position(cm), col 2 = measurements
-         *   regCalc - col 1 = position(cm), col 2 = calculated dose values
-         *   distThr - Gamma calc distance threshold in mm
-         *   doseThr - Gamma calc dose threshold in %
-         *   globAna - Global vs.Local dose difference analysis
-         *   usrThrs - User specified lower threshold for counting gamma results
-         *   plotOn - Plot flag to be verbose with plotting
-         *
-         * Output:
-         *   gam - 1D gamma calculation result
-         *   distMinGam - DTA component of gamma
-         *   doseMinGam - Dose difference component of gamma
-         *   gamma_stats - an array with[gamma_max gamma_mean gamma_std
-         *   aboveTh aboveThPass passRt]
-         *
-         *
          * Reference:
          *   D.A.Low and J.F.Dempsey.Evaluation of the gamma dose distribution
          *   comparison method.Medical Physics, 30(5):2455 2464, 2003.
          */
-        private void VerifyData(ref PlotData plotData)
+        private static void VerifyData(ref PlotData plotData)
         {
             var settings = new Properties.Settings();
 
             // Distance threshold
             var distThr = settings.dta;
+            var distThrSquared = distThr * distThr;
 
             // Dose threshold
             var doseThr = settings.doseDiff / 100; // Convert from percent to decimal
+            var doseThrSquared = doseThr * doseThr;
 
             var len = plotData.indep.Length;
-            var distThrSquared = distThr * distThr;
-            var doseThrSquared = doseThr * doseThr;
+
+            // Array to hold minimum squared gamma values
             var gammaSquaredMinColumn = new float[len];
             for (int i = 0; i < len; i++)
                 gammaSquaredMinColumn[i] = float.PositiveInfinity;
 
-            var gammaIndex = new int[len];
             plotData.distMinGamma = new float[len];
             plotData.doseMinGamma = new float[len];
+            var temp = new float[len];
+
             var useLocalAnalysis = settings.doseAnalysisLocal;
             for (int col = 0; col < len; col++)
             {
-                var minRowIndex = 0;
                 var minDistErr = 0f;
                 var minDoseErr = 0f;
                 for (int row = 0; row < len; row++)
@@ -915,17 +865,16 @@ namespace MPPG
                         d /= plotData.md[col];
 
                     var doseErr = d * d / doseThrSquared;
+                    temp[row] = doseErr;
 
                     var gammaSquared = distErr + doseErr;
                     if (gammaSquared < gammaSquaredMinColumn[row])
                     {
                         gammaSquaredMinColumn[row] = gammaSquared;
-                        minRowIndex = row;
                         minDistErr = distErr;
                         minDoseErr = doseErr;
                     }
                 }
-                gammaIndex[col] = minRowIndex;
                 plotData.distMinGamma[col] = (float)Math.Sqrt(minDistErr);
                 plotData.doseMinGamma[col] = (float)Math.Sqrt(minDoseErr);
             }
@@ -943,6 +892,33 @@ namespace MPPG
                 }
             }
             plotData.passRate = (float)aboveThPass / aboveTh * 100;
+        }
+
+        private void OnExportPDF(object sender, EventArgs e)
+        {
+            var dlg = new SaveFileDialog
+            {
+                Filter = "PDF file (*.pdf)|*.pdf"
+            };
+            if (dlg.ShowDialog() == DialogResult.OK)
+            {
+                var doc = new Document();
+                doc.Info.Title = "Blah";
+
+                var measurements = asc.Value;
+                for (int i = 0; i < measurements.NumberOfMeasurements; i++)
+                {
+                    PlotData plotData = PrepareData(measurements.Data[i]);
+                    VerifyData(ref plotData);
+
+                    var section = doc.AddSection();
+                    section.AddParagraph(plotData.plotTitle).Format.Alignment = ParagraphAlignment.Center;
+                }
+                var pdfRenderer = new PdfDocumentRenderer();
+                pdfRenderer.Document = doc;
+                pdfRenderer.RenderDocument();
+                pdfRenderer.PdfDocument.Save(dlg.FileName);
+            }
         }
     }
 }
