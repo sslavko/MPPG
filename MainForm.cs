@@ -1,8 +1,6 @@
 using EvilDICOM.Core;
 using EvilDICOM.Core.Extensions;
 using ScottPlot;
-using static MPPG.AscReader;
-using MigraDoc;
 using MigraDoc.DocumentObjectModel;
 using MigraDoc.Rendering;
 
@@ -72,7 +70,6 @@ namespace MPPG
                 dcm = DcmReader.Read(dcmSel, pixelStream, filePath);
                 if (dcm != null)
                 {
-                    txtDCMManufacturer.Text = dcm.Value.Manufacturer;
                     var offset = dcm.Value.Offset.Value;
                     txtDCMOffset.Text = string.Format("x: {0:F3}, y: {1:F3}, z: {2:F3}", offset.X, offset.Y, offset.Z);
                     txtDCMStatus.Text = "Ready";
@@ -80,16 +77,13 @@ namespace MPPG
                 else
                 {
                     txtDCMStatus.Text = "Failed to load DICOM file";
-                    txtDCMManufacturer.Text = "";
                     txtDCMOffset.Text = "";
                     dcm = null;
                 }
-                //pixelStream.Close();
             }
             else
             {
                 txtDCMStatus.Text = "Not a DICOM-RT DOSE file";
-                txtDCMManufacturer.Text = "";
                 txtDCMOffset.Text = "";
                 dcm = null;
             }
@@ -143,13 +137,11 @@ namespace MPPG
                 }
                 txtASCStatus.Text = string.Format("{0} inline, {1} crossline, {2} depth-dose, and {3} other profiles", numI, numC, numP, numO);
                 txtASCMeasurements.Text = asc.Value.NumberOfMeasurements.ToString();
-                txtASCScanner.Text = asc.Value.ScannerSystem;
             }
             else
             {
                 txtASCStatus.Text = "Failed to load";
                 txtASCMeasurements.Text = "";
-                txtASCScanner.Text = "";
                 asc = null;
             };
 
@@ -225,7 +217,7 @@ namespace MPPG
 
             PlotData plotData = PrepareData(measurements.Data[0]);
             VerifyData(ref plotData);
-            Plot(plotData, drawingPanel,true);
+            Plot(plotData, drawingPanel, true);
 
             txtPageNum.Enabled = true;
             btnRightPageNo.Enabled = measurements.NumberOfMeasurements > 1;
@@ -249,9 +241,9 @@ namespace MPPG
             internal float passRate;
         }
 
-        private void Plot(PlotData plotData, TableLayoutPanel panel, bool updateTitle)
+        private void Plot(PlotData plotData, TableLayoutPanel panel, bool screenDrawing)
         {
-            if (updateTitle)
+            if (screenDrawing)
                 txtTitle.Text = plotData.plotTitle;
 
             // Relative Dose plot
@@ -266,14 +258,12 @@ namespace MPPG
             graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
-            // subplot(3, 1, 1); plot(regCalc(:, 1), regCalc(:, 2), 'r--', 'Linewidth', 2);
             graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.cd);
             graph.Label = "TPS";
             graph.Color = ScottPlot.Colors.Red;
             graph.LineStyle.Pattern = LinePattern.Dashed;
             graph.MarkerStyle = MarkerStyle.None;
 
-            // subplot(3,1,1); plot(regCalc(:, 1),usrThrs*ones(size(regCalc(:, 1))),'m:','Linewidth',.1)
             var threshold = new float[plotData.cd.Length];
             for (int i = 0; i < threshold.Length; i++)
                 threshold[i] = plotData.threshold;
@@ -293,12 +283,13 @@ namespace MPPG
             var tpsDoseLabel = new System.Windows.Forms.Label()
             {
                 Text = string.Format("TPS dose at normalization point is {0:F3} Gy", plotData.cdRef),
-                Location = new Point(40, 5),
+                Location = new Point(55, 17),
                 BackColor = System.Drawing.Color.White,
                 AutoSize = true
             };
             relDosePlot.Controls.Add(tpsDoseLabel);
-            tpsDoseLabel.BringToFront();
+            if (screenDrawing)
+                tpsDoseLabel.BringToFront();
 
             // Gamma plot
             var gamaPlot = new ScottPlot.WinForms.FormsPlot()
@@ -307,7 +298,6 @@ namespace MPPG
             };
             panel.Controls.Add(gamaPlot, 0, 1);
 
-            // subplot(3,1,2); plot(regMeas(:, 1),gam,'b','Linewidth',2);
             graph = gamaPlot.Plot.Add.Scatter(plotData.indep, plotData.gamma);
             graph.Label = "Threshold";
             graph.Color = ScottPlot.Colors.Blue;
@@ -323,11 +313,13 @@ namespace MPPG
             var passRateLabel = new System.Windows.Forms.Label()
             {
                 Text = string.Format("Pass rate: {0:F1}%", plotData.passRate),
-                Location = new Point(40, 5),
+                Location = new Point(55, 17),
+                BackColor = System.Drawing.Color.White,
                 AutoSize = true
             };
             gamaPlot.Controls.Add(passRateLabel);
-            passRateLabel.BringToFront();
+            if (screenDrawing)
+                passRateLabel.BringToFront();
 
             // AU plot
             var auPlot = new ScottPlot.WinForms.FormsPlot()
@@ -337,13 +329,11 @@ namespace MPPG
             panel.Controls.Add(auPlot, 0, 2);
             auPlot.Plot.ShowLegend(Alignment.UpperRight);
 
-            // subplot(3,1,3); plot(regMeas(:, 1),distMinGam,'b','Linewidth',2)
             graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.distMinGamma);
             graph.Label = "distMinGam";
             graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
-            // subplot(3, 1, 3); plot(regMeas(:, 1), doseMinGam, 'r--', 'Linewidth', 2)
             graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.doseMinGamma);
             graph.Label = "doseMinGam";
             graph.LineStyle.Pattern = LinePattern.Dashed;
@@ -431,7 +421,7 @@ namespace MPPG
         /* Evaluate the calculated dose grid to determine if the measure profile fits inside
          * Check if calculated dose grid is larger than measured for all boundaries
          */
-        private void CheckData(SingleMeasurement measurement, int measurementNumber)
+        private void CheckData(AscReader.SingleMeasurement measurement, int measurementNumber)
         {
             var measData = measurement.BeamData;
             var calData = dcm.Value;
@@ -546,7 +536,7 @@ namespace MPPG
 
         /* Prepare data for drawing on graphs
          */
-        private PlotData PrepareData(SingleMeasurement measurement)
+        private PlotData PrepareData(AscReader.SingleMeasurement measurement)
         {
             var measData = measurement.BeamData;
             var calcData = dcm.Value;
@@ -869,9 +859,9 @@ namespace MPPG
                     temp[row] = doseErr;
 
                     var gammaSquared = distErr + doseErr;
-                    if (gammaSquared < gammaSquaredMinColumn[row])
+                    if (gammaSquared < gammaSquaredMinColumn[col])
                     {
-                        gammaSquaredMinColumn[row] = gammaSquared;
+                        gammaSquaredMinColumn[col] = gammaSquared;
                         minDistErr = distErr;
                         minDoseErr = doseErr;
                     }
@@ -899,6 +889,7 @@ namespace MPPG
         {
             var dlg = new SaveFileDialog
             {
+                FileName = Path.GetFileNameWithoutExtension(txtDCMFile.Text),
                 Filter = "PDF file (*.pdf)|*.pdf"
             };
             if (dlg.ShowDialog() == DialogResult.OK)
@@ -910,6 +901,8 @@ namespace MPPG
 
                 var measurements = asc.Value;
                 var tempFiles = new List<string>();
+
+                // Prepare off-screen panel for drawing
                 var panel = new TableLayoutPanel
                 {
                     Width = bmpWidth,
@@ -920,12 +913,38 @@ namespace MPPG
                 panel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
                 panel.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
 
+                // Insert first page in PDF with detailed information about this calculation
+                var section = doc.AddSection();
+                var settings = new Properties.Settings();
+                section.AddParagraph(string.Format("Measurement file: {0}", txtASCFile.Text));
+                section.AddParagraph(string.Format("DICOM-RT DOSE file: {0}", txtDCMFile.Text));
+                section.AddParagraph(string.Format("DICOM offset: {0}", txtDCMOffset.Text));
+                if (settings.normDepthMan)
+                    section.AddParagraph(string.Format("Normalize depth dose profile to: {0}cm", settings.depthY));
+                else
+                    section.AddParagraph("Normalize depth dose profile to: Dmax");
+
+                if (settings.NormInCrossMan)
+                    section.AddParagraph(string.Format("Normalize Inline and Crossline profiles to Crossline (X) {0}cm, Inline (Z) {1}cm", settings.crossX, settings.inlineZ));
+                else
+                    section.AddParagraph("Normalize Inline and Crossline profiles to Dmax");
+
+                section.AddParagraph(string.Format("Dose diff. (%): {0}", settings.doseDiff));
+                section.AddParagraph(string.Format("DTA (mm): {0}", settings.dta));
+                section.AddParagraph(string.Format("Threshold: {0}", settings.useThreshold ? settings.threshold : "-"));
+                section.AddParagraph(string.Format("Dose analysis: {0}", settings.doseAnalysisLocal ? "Local" : "Global"));
+
                 for (int i = 0; i < measurements.NumberOfMeasurements; i++)
                 {
                     PlotData plotData = PrepareData(measurements.Data[i]);
                     VerifyData(ref plotData);
 
-                    var section = doc.AddSection();
+                    // Add page break after every second graph
+                    if (i % 2 == 0)
+                        section.AddPageBreak();
+                    else
+                        section.AddParagraph();
+
                     section.AddParagraph(plotData.plotTitle).Format.Alignment = ParagraphAlignment.Center;
 
                     Plot(plotData, panel, false);
@@ -943,6 +962,7 @@ namespace MPPG
                 pdfRenderer.RenderDocument();
                 pdfRenderer.PdfDocument.Save(dlg.FileName);
 
+                // Delete temporary image files
                 foreach (var tempFile in tempFiles)
                     File.Delete(tempFile);
 
