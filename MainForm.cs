@@ -916,23 +916,54 @@ namespace MPPG
                 // Insert first page in PDF with detailed information about this calculation
                 var section = doc.AddSection();
                 var settings = new Properties.Settings();
-                section.AddParagraph(string.Format("Measurement file: {0}", txtASCFile.Text));
-                section.AddParagraph(string.Format("DICOM-RT DOSE file: {0}", txtDCMFile.Text));
-                section.AddParagraph(string.Format("DICOM offset: {0}", txtDCMOffset.Text));
+
+                var table = section.AddTable();
+                table.Borders.Color = MigraDoc.DocumentObjectModel.Colors.Black;
+
+                table.AddColumn("7cm");
+                table.AddColumn("10cm");
+
+                var row = table.AddRow();
+                row.Cells[0].AddParagraph("Measurement file");
+                row.Cells[1].AddParagraph(txtASCFile.Text);
+
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("DICOM-RT DOSE file");
+                row.Cells[1].AddParagraph(txtDCMFile.Text);
+
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("DICOM offset");
+                row.Cells[1].AddParagraph(txtDCMOffset.Text);
+
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("Normalize depth dose profile to");
                 if (settings.normDepthMan)
-                    section.AddParagraph(string.Format("Normalize depth dose profile to: {0}cm", settings.depthY));
+                    row.Cells[1].AddParagraph(settings.depthY + "cm");
                 else
-                    section.AddParagraph("Normalize depth dose profile to: Dmax");
+                    row.Cells[1].AddParagraph("Dmax");
 
+                row = table.AddRow();
+                row.Cells[0].AddParagraph(string.Format("Normalize Inline and Crossline profiles to"));
                 if (settings.NormInCrossMan)
-                    section.AddParagraph(string.Format("Normalize Inline and Crossline profiles to Crossline (X) {0}cm, Inline (Z) {1}cm", settings.crossX, settings.inlineZ));
+                    row.Cells[1].AddParagraph(string.Format("Crossline (X) {0}cm, Inline (Z) {1}cm", settings.crossX, settings.inlineZ));
                 else
-                    section.AddParagraph("Normalize Inline and Crossline profiles to Dmax");
+                    row.Cells[1].AddParagraph("Dmax");
 
-                section.AddParagraph(string.Format("Dose diff. (%): {0}", settings.doseDiff));
-                section.AddParagraph(string.Format("DTA (mm): {0}", settings.dta));
-                section.AddParagraph(string.Format("Threshold: {0}", settings.useThreshold ? settings.threshold : "-"));
-                section.AddParagraph(string.Format("Dose analysis: {0}", settings.doseAnalysisLocal ? "Local" : "Global"));
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("Dose difference");
+                row.Cells[1].AddParagraph(settings.doseDiff.ToString() + "%");
+
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("DTA");
+                row.Cells[1].AddParagraph(settings.dta.ToString() + "mm");
+
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("Threshold");
+                row.Cells[1].AddParagraph(settings.useThreshold ? settings.threshold.ToString() : "-");
+
+                row = table.AddRow();
+                row.Cells[0].AddParagraph("Dose analysis");
+                row.Cells[1].AddParagraph(settings.doseAnalysisLocal ? "Local" : "Global");
 
                 for (int i = 0; i < measurements.NumberOfMeasurements; i++)
                 {
