@@ -3,6 +3,7 @@ using EvilDICOM.Core.Extensions;
 using ScottPlot;
 using MigraDoc.DocumentObjectModel;
 using MigraDoc.Rendering;
+using Accessibility;
 
 namespace MPPG
 {
@@ -227,9 +228,9 @@ namespace MPPG
 
         private struct PlotData
         {
-            internal float[] indep;
-            internal float[] md;
-            internal float[] cd;
+            internal float[] positions;
+            internal float[] measuredValues;
+            internal float[] calculatedValues;
             internal float[] gamma;
             internal float[] distMinGamma;
             internal float[] doseMinGamma;
@@ -253,29 +254,29 @@ namespace MPPG
             };
             panel.Controls.Add(relDosePlot, 0, 0);
             relDosePlot.Plot.ShowLegend(Alignment.UpperRight);
-            var graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.md);
+            var graph = relDosePlot.Plot.Add.Scatter(plotData.positions, plotData.measuredValues);
             graph.Label = "Measured";
             graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
-            graph = relDosePlot.Plot.Add.Scatter(plotData.indep, plotData.cd);
+            graph = relDosePlot.Plot.Add.Scatter(plotData.positions, plotData.calculatedValues);
             graph.Label = "TPS";
             graph.Color = ScottPlot.Colors.Red;
             graph.LineStyle.Pattern = LinePattern.Dashed;
             graph.MarkerStyle = MarkerStyle.None;
 
-            var threshold = new float[plotData.cd.Length];
+            var threshold = new float[plotData.calculatedValues.Length];
             for (int i = 0; i < threshold.Length; i++)
                 threshold[i] = plotData.threshold;
 
-            graph = relDosePlot.Plot.Add.Scatter(plotData.indep, threshold);
+            graph = relDosePlot.Plot.Add.Scatter(plotData.positions, threshold);
             graph.Label = "Threshold";
             graph.Color = ScottPlot.Colors.Magenta;
             graph.LineStyle.Pattern = LinePattern.Dotted;
             graph.MarkerStyle = MarkerStyle.None;
 
             relDosePlot.Plot.XLabel(plotData.horAxisText);
-            relDosePlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
+            relDosePlot.Plot.Axes.SetLimitsX(plotData.positions[0], plotData.positions[^1]);
             relDosePlot.Plot.YLabel("Relative Dose");
             relDosePlot.Plot.FigureBackground.Color = ScottPlot.Colors.White;
             relDosePlot.Refresh();
@@ -298,13 +299,13 @@ namespace MPPG
             };
             panel.Controls.Add(gamaPlot, 0, 1);
 
-            graph = gamaPlot.Plot.Add.Scatter(plotData.indep, plotData.gamma);
+            graph = gamaPlot.Plot.Add.Scatter(plotData.positions, plotData.gamma);
             graph.Label = "Threshold";
             graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
             gamaPlot.Plot.XLabel(plotData.horAxisText);
-            gamaPlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
+            gamaPlot.Plot.Axes.SetLimitsX(plotData.positions[0], plotData.positions[^1]);
             gamaPlot.Plot.YLabel("Gamma");
             gamaPlot.Plot.Axes.SetLimitsY(0, 1.5);
             gamaPlot.Plot.FigureBackground.Color = ScottPlot.Colors.White;
@@ -329,19 +330,19 @@ namespace MPPG
             panel.Controls.Add(auPlot, 0, 2);
             auPlot.Plot.ShowLegend(Alignment.UpperRight);
 
-            graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.distMinGamma);
+            graph = auPlot.Plot.Add.Scatter(plotData.positions, plotData.distMinGamma);
             graph.Label = "distMinGam";
             graph.Color = ScottPlot.Colors.Blue;
             graph.MarkerStyle = MarkerStyle.None;
 
-            graph = auPlot.Plot.Add.Scatter(plotData.indep, plotData.doseMinGamma);
+            graph = auPlot.Plot.Add.Scatter(plotData.positions, plotData.doseMinGamma);
             graph.Label = "doseMinGam";
             graph.LineStyle.Pattern = LinePattern.Dashed;
             graph.Color = ScottPlot.Colors.Red;
             graph.MarkerStyle = MarkerStyle.None;
 
             auPlot.Plot.XLabel(plotData.horAxisText);
-            auPlot.Plot.Axes.SetLimitsX(plotData.indep[0], plotData.indep[^1]);
+            auPlot.Plot.Axes.SetLimitsX(plotData.positions[0], plotData.positions[^1]);
             auPlot.Plot.YLabel("AU");
             auPlot.Plot.Axes.SetLimitsY(0, 1.5);
             auPlot.Plot.FigureBackground.Color = ScottPlot.Colors.White;
@@ -361,9 +362,9 @@ namespace MPPG
             return maxSpace - minSpace;
         }
 
-        private static void LineSpace(float[] arr)
+        private static void FillLinearlySpaced(float[] arr)
         {
-            // Note that increment can be negative if array is in reverse order
+            // Note: increment can be negative if array is in reverse order
             var inc = (arr[^1] - arr[0]) / (arr.Length - 1);
             var first = arr[0];
             for (int i = 0; i < arr.Length; i++)
@@ -374,6 +375,16 @@ namespace MPPG
         {
             for (int i = 0; i < list.Length; i++)
                 list[i] = val;
+        }
+
+        private static float FindArrayMode(float[] arr)
+        {
+            var mode = arr.GroupBy(i => i)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefault();
+
+            return mode;
         }
 
         private static int FindNearestIndex(float[] arr, float val)
@@ -541,30 +552,30 @@ namespace MPPG
             var measData = measurement.BeamData;
             var calcData = dcm.Value;
 
-            // Determine what measured dimension to use for independent variable:
-
             // Some scanning system export profiles that have meandering position values along axes that are
             // supposed to be fixed. This block of code pre-emptively addresses the problem by:
             // (1) Identifies if the scan is moving along this axis. If the start and end location differ by more than 1 mm
             // it is "moving". If they differ by less that 1 mm, then this axis is assumed to be stationary.
             // (2) If the axis is stationary, all of the values in the vector are set to the mode of that vector.
 
-            // Note: The original code was filling stationary axis with their modal but since all values in them are
-            // esentially the same we can just pick the first element
-            // QUESTION: Can we use measurement AxisType?
             var idm = measData.X;
-            if (Math.Abs(measData.X[^1] - measData.X[0]) < 0.1)
-                FillArray(measData.X, measData.X[0]);
-
-            if (Math.Abs(measData.Y[^1] - measData.Y[0]) < 0.1)
-                FillArray(measData.Y, measData.Y[0]);
-            else
-                idm = measData.Y;
-
-            if (Math.Abs(measData.Z[^1] - measData.Z[0]) < 0.1)
-                FillArray(measData.Z, measData.Z[0]);
-            else
-                idm = measData.Z;
+            switch (measurement.AxisType)
+            {
+                case 'X':
+                    FillArray(measData.Y, FindArrayMode(measData.Y));
+                    FillArray(measData.Z, FindArrayMode(measData.Z));
+                    break;
+                case 'Y':
+                    idm = measData.Y;
+                    FillArray(measData.X, FindArrayMode(measData.X));
+                    FillArray(measData.Z, FindArrayMode(measData.Z));
+                    break;
+                case 'Z':
+                    idm = measData.Z;
+                    FillArray(measData.X, FindArrayMode(measData.X));
+                    FillArray(measData.Y, FindArrayMode(measData.Y));
+                    break;
+            }
 
             // Check if any points of the measured data are at same location. Get rid of any measured
             // points that are at repeat locations, this will crash interpolation
@@ -585,125 +596,136 @@ namespace MPPG
             // The following code checks for this condition, determines how large it is and resamples to a uniform spacing.
             // TODO: Move this code to DcmReader and do it only once after file is read
 
+            var spacingTolerance = 0.00001;
+
             // X
             var space = FindSpacing(calcData.X);
-            if (space > 0.001) // is it larger than 1 / 100 mm?
+            if (space > spacingTolerance)
             {
-                MessageBox.Show(string.Format("WARNING: The calculated x-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
-                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                LineSpace(calcData.X);
-            }
-            else if (space > 0.0) // is it larger than 0 mm?
-            {
-                // WARNING: Why???
-                // LineSpace(calData.X);
+                // Apply new linearly spaced values for positions
+                if (space > 0.001) // Warn user if maximum spacing is larger than 1 / 100 mm
+                {
+                    MessageBox.Show(string.Format("WARNING: The calculated x-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
+                                    "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                FillLinearlySpaced(calcData.X);
             }
 
             // Y
             space = FindSpacing(calcData.Y);
-            if (space > 0.001) // is it larger than 1 / 100 mm?
+            if (space > spacingTolerance)
             {
-                MessageBox.Show(string.Format("WARNING: The calculated y-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
-                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                LineSpace(calcData.Y);
-            }
-            else if (space > 0.0) // is it larger than 0 mm?
-            {
-                // WARNING: Why???
-                // LineSpace(calData.Y);
+                if (space > 0.001) // Warn user if maximum spacing is larger than 1 / 100 mm
+                {
+                    MessageBox.Show(string.Format("WARNING: The calculated y-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
+                                    "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                FillLinearlySpaced(calcData.Y);
             }
 
             // Z
             space = FindSpacing(calcData.Z);
-            if (space > 0.001) // is it larger than 1 / 100 mm?
+            if (space > spacingTolerance)
             {
-                MessageBox.Show(string.Format("WARNING: The calculated z-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
-                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                LineSpace(calcData.Z);
-            }
-            else if (space > 0.0) // is it larger than 0 mm?
-            {
-                // WARNING: Why???
-                // LineSpace(calData.Z);
+                if (space > 0.001) // Warn user if maximum spacing is larger than 1 / 100 mm
+                {
+                    MessageBox.Show(string.Format("WARNING: The calculated z-axis values are not uniformly spaced. The maximum discrepancy is {0} cm.", space),
+                                    "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                FillLinearlySpaced(calcData.Z);
             }
 
-            // Resample for gamma analysis
+            // *** Resample for gamma analysis ***
 
             // Resample indep with the same range but a finer spacing
             var SAMP_PER_CM = 200; // samples per cm
             var idmRange = Math.Abs(idm[^1] - idm[0]);
             var numberOfPoints = Math.Min(2500, (int)Math.Floor(SAMP_PER_CM * idmRange)); // number of samples needed, max 2500
 
-            var plotData = new PlotData();
-            plotData.indep = new float[numberOfPoints];
-            plotData.indep[0] = idm[0];   // Insert first value
-            plotData.indep[^1] = idm[^1]; // Insert last value
+            var plotData = new PlotData
+            {
+                positions = new float[numberOfPoints]
+            };
+            plotData.positions[0] = idm[0];   // Insert first value
+            plotData.positions[^1] = idm[^1]; // Insert last value
 
-            // This will fill array with linearly spaced values
-            LineSpace(plotData.indep);
+            // This will fill array of positions with linearly spaced values between first and last values
+            FillLinearlySpaced(plotData.positions);
 
-            // Interpolation functions require array of doubles, prepare it here once
-            var reqPos = idm.Select(n => (double)n);
+            // Interpolation functions require arrays of doubles
+            var measuredPositions = idm.Select(n => (double)n);
+            var measuredValues = measData.V.Select(n => (double)n);
 
-            // Resample measured values with new indep
+            // Create interpolator with measured positions and values (real measured data)
             var interpolatorM = MathNet.Numerics.Interpolation.CubicSpline.InterpolatePchip(
-                reqPos,
-                measData.V.Select(n => (double)n));
+                measuredPositions,
+                measuredValues);
 
-            // Find new measured values for each new position
-            plotData.md = new float[numberOfPoints];
+            // Find interpolated measured values for each new position
+            plotData.measuredValues = new float[numberOfPoints];
             for (var i = 0; i < numberOfPoints; i++)
-                plotData.md[i] = (float)interpolatorM.Interpolate(plotData.indep[i]);
+                plotData.measuredValues[i] = (float)interpolatorM.Interpolate(plotData.positions[i]);
 
-            // Find new calculated values for each new position
+            // Prepare calculated data for interpolation
             int xIndex, yIndex, zIndex;
-            double[] horAxis = null;
-            double[] calcVals = null;
+            var calculatedPositions = Array.Empty<double>();
+            var calculatedValues = Array.Empty<double>();
 
             switch (measurement.AxisType)
             {
                 case 'X':
                     yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
                     zIndex = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
-                    calcVals = new double[calcData.X.Length];
-                    for (int i = 0; i < calcData.X.Length; i++)
-                        calcVals[i] = calcData.V[i, yIndex, zIndex];
 
-                    horAxis = calcData.X.Select(n => (double)n).ToArray();
+                    // Extract values along calculated X axis
+                    calculatedValues = new double[calcData.X.Length];
+                    for (int i = 0; i < calcData.X.Length; i++)
+                        calculatedValues[i] = calcData.V[i, yIndex, zIndex];
+
+                    calculatedPositions = calcData.X.Select(n => (double)n).ToArray();
                     break;
                 case 'Z':
                     xIndex = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
                     zIndex = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
-                    calcVals = new double[calcData.Y.Length];
-                    for (int i = 0; i < calcVals.Length; i++)
-                        calcVals[i] = calcData.V[xIndex, i, zIndex];
 
-                    horAxis = calcData.Y.Select(n => (double)n).ToArray();
+                    // Extract values along calculated Y axis
+                    calculatedValues = new double[calcData.Y.Length];
+                    for (int i = 0; i < calculatedValues.Length; i++)
+                        calculatedValues[i] = calcData.V[xIndex, i, zIndex];
+
+                    calculatedPositions = calcData.Y.Select(n => (double)n).ToArray();
                     break;
                 case 'Y':
                     xIndex = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
                     yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
-                    calcVals = new double[calcData.Z.Length];
-                    for (int i = 0; i < calcVals.Length; i++)
-                        calcVals[i] = calcData.V[xIndex, yIndex, i];
 
-                    horAxis = calcData.Z.Select(n => (double)n).ToArray();
+                    // Extract values along calculated Z axis
+                    calculatedValues = new double[calcData.Z.Length];
+                    for (int i = 0; i < calculatedValues.Length; i++)
+                        calculatedValues[i] = calcData.V[xIndex, yIndex, i];
+
+                    calculatedPositions = calcData.Z.Select(n => (double)n).ToArray();
                     break;
             }
 
-            var interpolatorC = MathNet.Numerics.Interpolation.CubicSpline.InterpolateNatural(horAxis, calcVals);
+            // Create interpolator with calculated positions and values (real calculated data)
+            var interpolatorC = MathNet.Numerics.Interpolation.CubicSpline.InterpolateNatural(
+                calculatedPositions, 
+                calculatedValues);
 
-            // Resample calculated values with new indep
-            plotData.cd = new float[numberOfPoints];
+            // Find interpolated calculated values for each new position
+            plotData.calculatedValues = new float[numberOfPoints];
             for (var i = 0; i < numberOfPoints; i++)
-                plotData.cd[i] = (float)interpolatorC.Interpolate(plotData.indep[i]);
+                plotData.calculatedValues[i] = (float)interpolatorC.Interpolate(plotData.positions[i]);
 
-            // QUESTION: Can we do this before resampling? It is faster to normalize original values before resampling - less calculations
-            // Apply normalization preferences:
-            // Use user preferences to determine normalization location
+            // *** Normalization ***
+
+            // Measured data are always normalized with maximum value
+            var maxVal = plotData.measuredValues.Max();
+            for (int i = 0; i < plotData.measuredValues.Length; i++)
+                plotData.measuredValues[i] /= maxVal;
+
+            // Apply normalization to calculated values, use user preferences to determine normalization location
             var settings = new Properties.Settings();
             plotData.normLoc = null;
             string normText = "";
@@ -764,41 +786,29 @@ namespace MPPG
                     break;
             }
 
-            if (!plotData.normLoc.HasValue)
-                normText = "Profiles normalized at maximum dose location for each profile";
-
-            plotData.plotTitle = string.Format("{0}{1}{2}{1}{3}",
-                                                Path.GetFileNameWithoutExtension(txtDCMFile.Text),
-                                                Environment.NewLine,
-                                                plotData.plotTitle,
-                                                normText);
-
-            // Measured data are always normalized with maximum value
-            var maxVal = plotData.md.Max();
-            for (int i = 0; i < plotData.md.Length; i++)
-                plotData.md[i] /= maxVal;
-
             if (plotData.normLoc.HasValue)
             {
                 // Normalization position is specified by user
                 plotData.cdRef = (float)interpolatorC.Interpolate(plotData.normLoc.Value);
 
+                // QUESTION: Can we use interpolatorM instead of creating new one for large set of already interpolated data?
                 var interpolatorMNorm = MathNet.Numerics.Interpolation.LinearSpline.Interpolate(
-                    plotData.indep.Select(n => (double)n),
-                    plotData.md.Select(n => (double)n));
+                    plotData.positions.Select(n => (double)n),
+                    plotData.measuredValues.Select(n => (double)n));
 
-                // QUESTION: Why do we multiply with measured value?
+                // QUESTION: Why do we multiply with measured value? Is it to make sure we don't go over value of 1?
                 var m = (float)interpolatorMNorm.Interpolate(plotData.normLoc.Value);
                 var q = plotData.cdRef * m;
-                for (int i = 0; i < plotData.cd.Length; i++)
-                    plotData.cd[i] /= q;
+                for (int i = 0; i < plotData.calculatedValues.Length; i++)
+                    plotData.calculatedValues[i] /= q;
             }
             else
             {
                 // Use maximum value for normalization
-                plotData.cdRef = plotData.cd.Max();
-                for (int i = 0; i < plotData.cd.Length; i++)
-                    plotData.cd[i] /= plotData.cdRef;
+                normText = "Profiles normalized at maximum dose location for each profile";
+                plotData.cdRef = plotData.calculatedValues.Max();
+                for (int i = 0; i < plotData.calculatedValues.Length; i++)
+                    plotData.calculatedValues[i] /= plotData.cdRef;
             }
 
             if (settings.useThreshold)
@@ -807,6 +817,12 @@ namespace MPPG
                 plotData.threshold = 0;
 
             plotData.gamma = new float[numberOfPoints];
+
+            plotData.plotTitle = string.Format("{0}{1}{2}{1}{3}",
+                                    Path.GetFileNameWithoutExtension(txtDCMFile.Text),
+                                    Environment.NewLine,
+                                    plotData.plotTitle,
+                                    normText);
 
             return plotData;
         }
@@ -820,6 +836,8 @@ namespace MPPG
         {
             var settings = new Properties.Settings();
 
+            var useLocalAnalysis = settings.doseAnalysisLocal;
+
             // Distance threshold
             var distThr = settings.dta;
             var distThrSquared = distThr * distThr;
@@ -828,7 +846,7 @@ namespace MPPG
             var doseThr = settings.doseDiff / 100; // Convert from percent to decimal
             var doseThrSquared = doseThr * doseThr;
 
-            var len = plotData.indep.Length;
+            var len = plotData.positions.Length;
 
             // Array to hold minimum squared gamma values
             var gammaSquaredMinColumn = new float[len];
@@ -837,9 +855,7 @@ namespace MPPG
 
             plotData.distMinGamma = new float[len];
             plotData.doseMinGamma = new float[len];
-            var temp = new float[len];
 
-            var useLocalAnalysis = settings.doseAnalysisLocal;
             for (int col = 0; col < len; col++)
             {
                 var minDistErr = 0f;
@@ -847,16 +863,15 @@ namespace MPPG
                 for (int row = 0; row < len; row++)
                 {
                     // Compute distance error (in mm)
-                    var d = (plotData.indep[col] - plotData.indep[row]) * 10; // convert to mm
+                    var d = (plotData.positions[col] - plotData.positions[row]) * 10; // convert to mm
                     var distErr = d * d / distThrSquared;
 
                     // Compute dose error
-                    d = plotData.md[col] - plotData.cd[row];
+                    d = plotData.measuredValues[col] - plotData.calculatedValues[row];
                     if (useLocalAnalysis)
-                        d /= plotData.md[col];
+                        d /= plotData.measuredValues[col];
 
                     var doseErr = d * d / doseThrSquared;
-                    temp[row] = doseErr;
 
                     var gammaSquared = distErr + doseErr;
                     if (gammaSquared < gammaSquaredMinColumn[col])
@@ -875,7 +890,7 @@ namespace MPPG
             for (int i = 0; i < len; i++)
             {
                 plotData.gamma[i] = (float)Math.Sqrt(gammaSquaredMinColumn[i]);
-                if (plotData.md[i] > plotData.threshold && plotData.cd[i] > 0)
+                if (plotData.measuredValues[i] > plotData.threshold && plotData.calculatedValues[i] > 0)
                 {
                     aboveTh++;
                     if (plotData.gamma[i] <= 1)

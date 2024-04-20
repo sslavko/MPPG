@@ -173,7 +173,7 @@ namespace MPPG
                 calcData.Y[i] = (float)(imagePositionPatient[1] + pixelSpacing[0] * i) / 10 - offset.Y;
 
             var data = dcmSel.GridFrameOffsetVector.Data_;
-            calcData.Z = new float[data.Count];
+            calcData.Z = new float[deps]; // Valu of deps must match number of elements in data
             for (int i = 0; i < data.Count; i++)
                 calcData.Z[i] = (float)(imagePositionPatient[2] + data[i]) / 10 - offset.Z;
 
@@ -181,7 +181,7 @@ namespace MPPG
             pixelStream.Read(buf, 0, buf.Length);
             pixelStream.Close();
 
-            // TODO: Can data be stored as anything else?
+            // TODO: Can data be stored as anything else but ushort (two bytes)?
             // var bits = dcmSel.BitsStored.Data;
 
             var scale = (float)dcmSel.DoseGridScaling.Data;
