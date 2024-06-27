@@ -58,6 +58,7 @@
             doseDiff = new NumericUpDown();
             label4 = new Label();
             label1 = new Label();
+            chkDashDotLines = new CheckBox();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)depthY).BeginInit();
             groupBox2.SuspendLayout();
@@ -272,7 +273,7 @@
             groupBox3.Controls.Add(label1);
             groupBox3.Location = new Point(12, 120);
             groupBox3.Name = "groupBox3";
-            groupBox3.Size = new Size(701, 133);
+            groupBox3.Size = new Size(701, 115);
             groupBox3.TabIndex = 2;
             groupBox3.TabStop = false;
             groupBox3.Text = "Gamma Analysis";
@@ -390,6 +391,16 @@
             label1.TabIndex = 0;
             label1.Text = "Dose Diff";
             // 
+            // chkDashDotLines
+            // 
+            chkDashDotLines.AutoSize = true;
+            chkDashDotLines.Location = new Point(21, 252);
+            chkDashDotLines.Name = "chkDashDotLines";
+            chkDashDotLines.Size = new Size(169, 24);
+            chkDashDotLines.TabIndex = 12;
+            chkDashDotLines.Text = "Dashed Dose Graphs";
+            chkDashDotLines.UseVisualStyleBackColor = true;
+            // 
             // Options
             // 
             AcceptButton = btnOk;
@@ -397,6 +408,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = btnCancel;
             ClientSize = new Size(723, 320);
+            Controls.Add(chkDashDotLines);
             Controls.Add(groupBox3);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
@@ -423,6 +435,7 @@
             ((System.ComponentModel.ISupportInitialize)dta).EndInit();
             ((System.ComponentModel.ISupportInitialize)doseDiff).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -457,5 +470,6 @@
         private Label label10;
         private RadioButton rdDoseAnalysisLocal;
         private RadioButton rdDoseAnalysisGlobal;
+        private CheckBox chkDashDotLines;
     }
 }

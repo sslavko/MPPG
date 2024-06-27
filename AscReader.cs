@@ -171,6 +171,7 @@
 
                         line = reader.ReadLine();
                     }
+
                     if (maxX - minX > .1)
                     {
                         measurement.AxisType = 'X';
@@ -182,7 +183,11 @@
                     }
                     if (maxY - minY > .1)
                     {
-                        measurement.AxisType = 'Y';
+                        if (measurement.AxisType == '\0')
+                            measurement.AxisType = 'Y';
+                        else
+                            measurement.AxisType = 'D';
+
                         if (measurement.BeamData.Y[0] > measurement.BeamData.Y[^1])
                         {
                             measurement.BeamData.Y.Reverse().ToArray().CopyTo(measurement.BeamData.Y, 0);

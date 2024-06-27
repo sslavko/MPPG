@@ -38,6 +38,8 @@ namespace MPPG
             chkThreshold.Checked = Settings.useThreshold;
             threshold.Value = (decimal)Settings.threshold;
             rdDoseAnalysisLocal.Checked = Settings.doseAnalysisLocal;
+
+            chkDashDotLines.Checked = Settings.dashedGraphs;
         }
 
         private void OnNormDepthDMaxChanged(object sender, EventArgs e)
@@ -86,6 +88,8 @@ namespace MPPG
             Settings.useThreshold = chkThreshold.Checked;
             Settings.threshold = (float)threshold.Value;
             Settings.doseAnalysisLocal = rdDoseAnalysisLocal.Checked;
+
+            Settings.dashedGraphs = chkDashDotLines.Checked;
 
             Settings.Save();
         }

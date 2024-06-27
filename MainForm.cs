@@ -4,6 +4,9 @@ using ScottPlot;
 using MigraDoc.DocumentObjectModel;
 using MigraDoc.Rendering;
 using Accessibility;
+using System.Diagnostics;
+using Microsoft.VisualBasic.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace MPPG
 {
@@ -247,6 +250,9 @@ namespace MPPG
             if (screenDrawing)
                 txtTitle.Text = plotData.plotTitle;
 
+            var settings = new Properties.Settings();
+            var drawDashedGraphs = settings.dashedGraphs;
+
             // Relative Dose plot
             var relDosePlot = new ScottPlot.WinForms.FormsPlot()
             {
@@ -262,7 +268,9 @@ namespace MPPG
             graph = relDosePlot.Plot.Add.Scatter(plotData.positions, plotData.calculatedValues);
             graph.Label = "TPS";
             graph.Color = ScottPlot.Colors.Red;
-            graph.LineStyle.Pattern = LinePattern.Dashed;
+            if (drawDashedGraphs)
+                graph.LineStyle.Pattern = LinePattern.Dashed;
+
             graph.MarkerStyle = MarkerStyle.None;
 
             var threshold = new float[plotData.calculatedValues.Length];
@@ -337,7 +345,9 @@ namespace MPPG
 
             graph = auPlot.Plot.Add.Scatter(plotData.positions, plotData.doseMinGamma);
             graph.Label = "doseMinGam";
-            graph.LineStyle.Pattern = LinePattern.Dashed;
+            if (drawDashedGraphs)
+                graph.LineStyle.Pattern = LinePattern.Dashed;
+
             graph.Color = ScottPlot.Colors.Red;
             graph.MarkerStyle = MarkerStyle.None;
 
@@ -584,6 +594,7 @@ namespace MPPG
             {
                 if (idm[i] - idm[i - 1] == 0)
                 {
+                    Debug.WriteLine("*** Duplicate found ***");
                     // TODO: Remove duplicated measurement
                     /*not_rep_pts = [true; (idm(1:end - 1) - idm(2:end)) ~= 0]; % not repeated points
                     idm = idm(not_rep_pts); // remove repeats in the sample positions
@@ -706,11 +717,33 @@ namespace MPPG
 
                     calculatedPositions = calcData.Z.Select(n => (double)n).ToArray();
                     break;
+                case 'D':
+                    // Assumption is that measured diagonal data is always in XY plane, Z position is fixed
+                    yIndex = FindNearestIndex(calcData.Y, measurement.BeamData.Z[0]);
+
+                    // Extract values along diagonal
+                    var startX = FindNearestIndex(calcData.X, measurement.BeamData.X[0]);
+                    var endX = FindNearestIndex(calcData.X, measurement.BeamData.X[^1]);
+                    var startZ = FindNearestIndex(calcData.Z, measurement.BeamData.Y[0]);
+                    var endZ = FindNearestIndex(calcData.Z, measurement.BeamData.Y[^1]);
+
+                    calculatedPositions = new double[endX - startX + 1];
+                    for (int i = 0; i < calculatedPositions.Length; i++)
+                        calculatedPositions[i] = calcData.X[startX + i];
+
+                    calculatedValues = new double[calculatedPositions.Length];
+                    for (int i = 0; i < calculatedValues.Length; i++)
+                    {
+                        xIndex = startX + i;
+                        zIndex = startZ + i;
+                        calculatedValues[i] = calcData.V[xIndex, yIndex, zIndex];
+                    }
+                    break;
             }
 
             // Create interpolator with calculated positions and values (real calculated data)
             var interpolatorC = MathNet.Numerics.Interpolation.CubicSpline.InterpolateNatural(
-                calculatedPositions, 
+                calculatedPositions,
                 calculatedValues);
 
             // Find interpolated calculated values for each new position
@@ -773,10 +806,16 @@ namespace MPPG
                         measurement.BeamData.X[0],
                         measurement.BeamData.Y[0]);
                     break;
-                default:
-                    // This is the case when axis type is not set - meaning it's diagonal
-                    // WARNING: Not tested! No test data!
-                    var str = string.Format("Diagonal Profiles from ({0:F2}, {1:F2}, {2:F2}) to ({3:F2}, {4:F2}, {5:F2})",
+                case 'D':
+                    // This is the case when axis type is diagonal. We will still use X axis
+                    // Normalization based on crossline normalization preferences:
+                    if (settings.NormInCrossMan)
+                    {
+                        plotData.normLoc = settings.crossX;
+                        normText = string.Format("Profiles normalized at X = {0:F2} cm", plotData.normLoc);
+                    }
+                    plotData.horAxisText = "Crossline Position (X) [cm]";
+                    plotData.plotTitle = string.Format("Diagonal Profiles from ({0:F2}, {1:F2}, {2:F2}) to ({3:F2}, {4:F2}, {5:F2})",
                         measurement.BeamData.X[0],
                         measurement.BeamData.Z[0],
                         measurement.BeamData.Y[0],
@@ -1014,6 +1053,12 @@ namespace MPPG
 
                 Cursor = Cursors.Default;
             }
+        }
+
+        private void OnAbout(object sender, EventArgs e)
+        {
+            var aboutBox = new AboutBox();
+            aboutBox.ShowDialog();
         }
     }
 }

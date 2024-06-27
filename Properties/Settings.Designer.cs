@@ -142,5 +142,17 @@ namespace MPPG.Properties {
                 this["doseAnalysisLocal"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool dashedGraphs {
+            get {
+                return ((bool)(this["dashedGraphs"]));
+            }
+            set {
+                this["dashedGraphs"] = value;
+            }
+        }
     }
 }

@@ -2,7 +2,7 @@
   "profiles": {
     "MPPG": {
       "commandName": "Project",
-      "commandLineArgs": "\"C:\\_Work\\MPPG\\Data\\1mm dose grid\\6MV 1x1.dcm\"\r\n\"C:\\_Work\\MPPG\\Data\\Measurements\\6MV 1x1 processed.asc\""
+      "commandLineArgs": "\"C:\\_Work\\MPPG\\Data\\1mm dose grid\\6MV 20x20 1mm dosegrid.dcm\"\r\n\"C:\\_Work\\MPPG\\Data\\Measurements\\6X 40x40_diagonal_80cm SSD.asc\""
     }
   }
 }

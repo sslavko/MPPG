@@ -35,6 +35,7 @@
             exportPDFToolStripMenuItem = new ToolStripMenuItem();
             runToolStripMenuItem = new ToolStripMenuItem();
             optionsToolStripMenuItem = new ToolStripMenuItem();
+            aboutToolStripMenuItem = new ToolStripMenuItem();
             exitMenuItem = new ToolStripMenuItem();
             tableLayoutPanel1 = new TableLayoutPanel();
             label1 = new Label();
@@ -61,7 +62,7 @@
             // mainMenu
             // 
             mainMenu.ImageScalingSize = new Size(20, 20);
-            mainMenu.Items.AddRange(new ToolStripItem[] { fileMenuItem, runToolStripMenuItem, optionsToolStripMenuItem, exitMenuItem });
+            mainMenu.Items.AddRange(new ToolStripItem[] { fileMenuItem, runToolStripMenuItem, optionsToolStripMenuItem, aboutToolStripMenuItem, exitMenuItem });
             mainMenu.Location = new Point(0, 0);
             mainMenu.Name = "mainMenu";
             mainMenu.Size = new Size(1182, 28);
@@ -115,8 +116,16 @@
             optionsToolStripMenuItem.Text = "&Options";
             optionsToolStripMenuItem.Click += OnOptions;
             // 
+            // aboutToolStripMenuItem
+            // 
+            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
+            aboutToolStripMenuItem.Size = new Size(64, 24);
+            aboutToolStripMenuItem.Text = "&About";
+            aboutToolStripMenuItem.Click += OnAbout;
+            // 
             // exitMenuItem
             // 
+            exitMenuItem.Alignment = ToolStripItemAlignment.Right;
             exitMenuItem.Name = "exitMenuItem";
             exitMenuItem.Size = new Size(47, 24);
             exitMenuItem.Text = "E&xit";
@@ -390,5 +399,6 @@
         private Button btnLeftPageNo;
         private Button btnRightPageNo;
         private TextBox txtPageNum;
+        private ToolStripMenuItem aboutToolStripMenuItem;
     }
 }
